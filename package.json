@@ -30,9 +30,11 @@
     ]
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
