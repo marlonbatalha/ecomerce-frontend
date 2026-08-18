@@ -79,13 +79,13 @@ Como o backend será construído sob medida (API própria, em repositório separ
 
 ### 1.8 Custos estimados (ordem de grandeza, a validar)
 
-| Item | Serviço sugerido | Faixa de custo inicial |
-|---|---|---|
-| Hospedagem frontend | Vercel (plano Pro) | ~US$20/mês |
-| DNS/CDN/WAF | Cloudflare (Free/Pro) | US$0–20/mês |
-| Domínio | Registro.br / Namecheap | ~R$40/ano |
-| Monitoramento de erros | Sentry (plano free/team) | US$0–26/mês |
-| Storage de imagens | Cloudflare R2 / S3 | pago por uso (baixo no início) |
+| Item                   | Serviço sugerido         | Faixa de custo inicial         |
+| ---------------------- | ------------------------ | ------------------------------ |
+| Hospedagem frontend    | Vercel (plano Pro)       | ~US$20/mês                     |
+| DNS/CDN/WAF            | Cloudflare (Free/Pro)    | US$0–20/mês                    |
+| Domínio                | Registro.br / Namecheap  | ~R$40/ano                      |
+| Monitoramento de erros | Sentry (plano free/team) | US$0–26/mês                    |
+| Storage de imagens     | Cloudflare R2 / S3       | pago por uso (baixo no início) |
 
 ---
 
@@ -199,16 +199,16 @@ ecomerce-frontend/
 
 ## 5. Fases do Projeto / Roadmap
 
-| Fase | Entregas principais |
-|---|---|
-| **0. Setup** | Repositório configurado (Next.js + TS + Tailwind), lint/format/testes, CI básico, deploy de "hello world" na Vercel (dev/staging/prod). |
-| **1. Catálogo** | Home, listagem de categoria/busca, página de produto — consumindo API própria (ou mocks via MSW enquanto backend não está pronto). |
-| **2. Carrinho e Checkout** | Carrinho persistente, fluxo de checkout completo, integração com gateway de pagamento. |
-| **3. Conta do usuário** | Login/cadastro, histórico de pedidos, endereços salvos, favoritos. |
-| **4. Integrações e Marketing** | Cálculo de frete, cupons, analytics/GTM, e-mails transacionais (via backend). |
-| **5. Otimização e QA** | Auditoria de performance (Core Web Vitals), acessibilidade (WCAG AA), testes E2E cobrindo fluxo de compra completo. |
-| **6. Lançamento** | Deploy em produção, monitoramento ativo (Sentry + uptime), plano de rollback. |
-| **7. Pós-lançamento** | Iteração baseada em analytics/heatmaps, otimizações de conversão. |
+| Fase                           | Entregas principais                                                                                                                     |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **0. Setup**                   | Repositório configurado (Next.js + TS + Tailwind), lint/format/testes, CI básico, deploy de "hello world" na Vercel (dev/staging/prod). |
+| **1. Catálogo**                | Home, listagem de categoria/busca, página de produto — consumindo API própria (ou mocks via MSW enquanto backend não está pronto).      |
+| **2. Carrinho e Checkout**     | Carrinho persistente, fluxo de checkout completo, integração com gateway de pagamento.                                                  |
+| **3. Conta do usuário**        | Login/cadastro, histórico de pedidos, endereços salvos, favoritos.                                                                      |
+| **4. Integrações e Marketing** | Cálculo de frete, cupons, analytics/GTM, e-mails transacionais (via backend).                                                           |
+| **5. Otimização e QA**         | Auditoria de performance (Core Web Vitals), acessibilidade (WCAG AA), testes E2E cobrindo fluxo de compra completo.                     |
+| **6. Lançamento**              | Deploy em produção, monitoramento ativo (Sentry + uptime), plano de rollback.                                                           |
+| **7. Pós-lançamento**          | Iteração baseada em analytics/heatmaps, otimizações de conversão.                                                                       |
 
 ---
 
@@ -233,4 +233,4 @@ ecomerce-frontend/
 
 ---
 
-*Documento vivo — atualizar conforme decisões técnicas forem confirmadas.*
+_Documento vivo — atualizar conforme decisões técnicas forem confirmadas._

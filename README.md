@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ecomerce-frontend
 
-## Getting Started
+Frontend do e-commerce (Next.js App Router), consumindo uma API própria desenvolvida em repositório separado.
 
-First, run the development server:
+Veja o plano completo do projeto em [`docs/plano-ecommerce.md`](./docs/plano-ecommerce.md).
+
+## Stack
+
+- [Next.js 16](https://nextjs.org) (App Router, TypeScript, Turbopack)
+- [Tailwind CSS v4](https://tailwindcss.com)
+- [Vitest](https://vitest.dev) + [React Testing Library](https://testing-library.com/react) — testes unitários/componentes
+- [Playwright](https://playwright.dev) — testes E2E
+- [MSW](https://mswjs.io) — mocks de API (dev sem backend pronto + testes)
+- ESLint + Prettier, Husky + lint-staged, Commitlint ([Conventional Commits](https://www.conventionalcommits.org/))
+
+## Como rodar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copie `.env.example` para `.env.local` e ajuste conforme necessário.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Script                         | Descrição                                                       |
+| ------------------------------ | --------------------------------------------------------------- |
+| `pnpm dev`                     | Sobe o servidor de desenvolvimento                              |
+| `pnpm build`                   | Build de produção                                               |
+| `pnpm start`                   | Sobe o build de produção                                        |
+| `pnpm lint` / `lint:fix`       | ESLint                                                          |
+| `pnpm format` / `format:check` | Prettier                                                        |
+| `pnpm typecheck`               | `tsc --noEmit`                                                  |
+| `pnpm test`                    | Testes unitários (Vitest)                                       |
+| `pnpm test:watch`              | Testes unitários em modo watch                                  |
+| `pnpm test:coverage`           | Testes unitários com cobertura                                  |
+| `pnpm test:e2e`                | Testes E2E (Playwright — requer `pnpm exec playwright install`) |
 
-To learn more about Next.js, take a look at the following resources:
+## Estrutura de pastas
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Ver seção 4 de [`docs/plano-ecommerce.md`](./docs/plano-ecommerce.md#4-estrutura-de-pastas-proposta).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├─ app/          # rotas (Next.js App Router)
+├─ components/   # componentes de UI reutilizáveis
+├─ features/     # lógica por domínio (carrinho, checkout, catálogo, conta)
+├─ lib/          # clients de API, utilitários, config
+├─ hooks/        # hooks compartilhados
+├─ mocks/        # handlers MSW (dev + testes)
+├─ styles/       # config Tailwind, estilos globais
+└─ types/        # tipos compartilhados (contratos com a API)
+tests/
+├─ unit/         # Vitest + React Testing Library
+└─ e2e/          # Playwright
+```
 
-## Deploy on Vercel
+## Commits
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Mensagens de commit seguem [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`...), validado pelo Commitlint no hook `commit-msg`. O hook `pre-commit` roda lint-staged (ESLint + Prettier) nos arquivos alterados.
