@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CartBadge } from "@/features/cart/components/cart-badge";
 import type { Category } from "@/types/catalog";
 
 export function SiteHeader({ categories }: { categories: Category[] }) {
@@ -33,6 +34,8 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
             className="w-full rounded-full border border-zinc-300 px-4 py-1.5 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-500"
           />
         </form>
+
+        <CartBadge />
       </div>
     </header>
   );

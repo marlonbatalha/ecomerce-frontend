@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getCategoryBySlug, getProductBySlug, getProducts } from "@/lib/api/catalog";
 import { formatCurrency } from "@/lib/format";
 import { ProductImage } from "@/components/product-image";
+import { AddToCartForm } from "@/features/cart/components/add-to-cart-form";
 
 export async function generateStaticParams() {
   const { items: products } = await getProducts({ pageSize: 100 });
@@ -90,7 +91,7 @@ export default async function ProductPage(props: PageProps<"/produtos/[slug]">) 
 
           <p className="mt-6 text-zinc-600 dark:text-zinc-400">{product.description}</p>
 
-          {/* Carrinho chega na Fase 2 do plano (docs/plano-ecommerce.md). */}
+          <AddToCartForm product={product} />
         </div>
       </div>
 

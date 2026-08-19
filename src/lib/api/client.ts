@@ -1,8 +1,11 @@
 /**
  * Cliente HTTP fino para a API própria (backend, repositório separado —
- * seção 1.7 do plano). Enquanto o backend não existe, as respostas vêm dos
- * handlers MSW (ver src/mocks): no browser via src/mocks/init.ts, e no
- * servidor (SSR/build) via src/instrumentation.ts.
+ * seção 1.7 do plano). Enquanto o backend não existe, cada módulo em
+ * `src/lib/api` lê direto de `src/mocks/data` quando
+ * NEXT_PUBLIC_API_MOCKING=enabled (ver comentário em
+ * src/mocks/data/catalog-queries.ts) em vez de chamar `apiFetch` — não dá
+ * pra confiar em interceptação de rede (MSW) em todo processo que o Next
+ * usa durante build/SSR.
  */
 
 export class ApiError extends Error {
@@ -33,10 +36,12 @@ function baseUrl(): string {
 
 export type ApiFetchOptions = Omit<RequestInit, "body"> & {
   searchParams?: Record<string, string | number | undefined>;
+  /** Serializado como JSON e enviado com `Content-Type: application/json`. */
+  json?: unknown;
 };
 
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  const { searchParams, ...init } = options;
+  const { searchParams, json, ...init } = options;
 
   const url = new URL(path, baseUrl());
   for (const [key, value] of Object.entries(searchParams ?? {})) {
@@ -45,8 +50,10 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   const res = await fetch(url, {
     ...init,
+    body: json !== undefined ? JSON.stringify(json) : undefined,
     headers: {
       Accept: "application/json",
+      ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
       ...init.headers,
     },
   });
