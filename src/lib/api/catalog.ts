@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import { mockingEnabled } from "@/lib/api/mocking";
 import {
   findCategoryBySlug,
   findProductBySlug,
@@ -14,10 +15,6 @@ const REVALIDATE_SECONDS = {
   categories: 3600,
   product: 300,
 } as const;
-
-function mockingEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_API_MOCKING === "enabled";
-}
 
 /**
  * Quando o mock está ligado (NEXT_PUBLIC_API_MOCKING=enabled), as funções

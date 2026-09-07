@@ -6,6 +6,14 @@
  * src/mocks/data/catalog-queries.ts) em vez de chamar `apiFetch` — não dá
  * pra confiar em interceptação de rede (MSW) em todo processo que o Next
  * usa durante build/SSR.
+ *
+ * `apiFetch` só roda no servidor (Server Components, Route Handlers, Server
+ * Actions) — de propósito, não por acaso: a URL do backend (BACKEND_URL)
+ * nunca é exposta ao browser. Se algum dia um client component precisar
+ * chamar a API própria diretamente, a chamada tem que passar por uma Server
+ * Action (ver `"use server"` em src/lib/api/orders.ts) — nunca usar
+ * NEXT_PUBLIC_* pra isso, ou a URL real do backend (host do App
+ * Service/VM em produção) vaza no bundle do cliente.
  */
 
 export class ApiError extends Error {
@@ -20,16 +28,14 @@ export class ApiError extends Error {
 }
 
 function baseUrl(): string {
-  // No browser, só variáveis NEXT_PUBLIC_* estão disponíveis. No servidor,
-  // preferimos a URL interna (API_URL), que pode apontar para um host só
-  // acessível de dentro da rede do backend.
-  const url =
-    typeof window === "undefined"
-      ? (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL)
-      : process.env.NEXT_PUBLIC_API_URL;
+  // Só existe como variável server-side (sem prefixo NEXT_PUBLIC_) — não é
+  // inlineada no bundle do cliente. Se isso rodar no browser (ver comentárionao
+  // no topo do arquivo), `process.env.BACKEND_URL` vem undefined e cai no
+  // throw abaixo — falha alto e cedo em vez de vazar a URL do backend.
+  const url = process.env.BACKEND_URL;
 
   if (!url) {
-    throw new Error("API_URL/NEXT_PUBLIC_API_URL não configurada. Veja .env.example.");
+    throw new Error("BACKEND_URL não configurada. Veja .env.example.");
   }
   return url;
 }

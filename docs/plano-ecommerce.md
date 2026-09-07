@@ -72,7 +72,7 @@ Como o backend será construído sob medida (API própria, em repositório separ
 ### 1.7 Integração com o Backend (API própria)
 
 - Backend custom vive em repositório separado e expõe uma API (REST ou GraphQL — decisão a alinhar com quem for construí-lo).
-- Frontend consome a API via variável de ambiente (`NEXT_PUBLIC_API_URL` para chamadas client-side; `API_URL` interna para chamadas server-side/SSR).
+- Frontend consome a API via `BACKEND_URL` (variável server-only, sem prefixo `NEXT_PUBLIC_`) — o browser nunca fala direto com o backend nem conhece sua URL real (host do App Service/VM). Toda chamada roda em Server Component/Route Handler/Server Action; um client component que precise disparar uma mutação (ex.: `checkout/pagamento`) chama uma Server Action (`"use server"`), que faz o fetch no servidor — decidido em 2026-09-06 depois de notar que `NEXT_PUBLIC_API_URL` (versão anterior) vazava a URL de infraestrutura do backend no bundle do cliente.
 - Um ambiente de API por ambiente de frontend: `api-dev`, `api-staging`, `api` (produção) — evita staging do front acidentalmente escrever em dados de produção.
 - CORS liberado no backend apenas para os domínios conhecidos do frontend (produção, staging, previews via wildcard controlado).
 - Autenticação: token JWT (access + refresh) ou sessão via cookie `httpOnly` — decisão a formalizar na seção de tecnologias/auth abaixo, mas a infraestrutura precisa suportar cookies cross-domain se front e API ficarem em domínios/subdomínios diferentes.

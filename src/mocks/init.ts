@@ -14,6 +14,8 @@
  * endpoint (ver seção 1.7 do plano).
  */
 
+import { mockingEnabled } from "@/lib/api/mocking";
+
 // Memoiza a promise de start: chamar `worker.start()` mais de uma vez (ex.:
 // o double-invoke de efeitos do React Strict Mode em dev) faz o MSW lançar
 // "cannot configure an already enabled network" na segunda chamada.
@@ -21,7 +23,7 @@ let startPromise: Promise<void> | undefined;
 
 export function initMocks(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  if (process.env.NEXT_PUBLIC_API_MOCKING !== "enabled") return Promise.resolve();
+  if (!mockingEnabled()) return Promise.resolve();
 
   startPromise ??= import("./browser").then(async ({ worker }) => {
     await worker.start({ onUnhandledRequest: "bypass" });
