@@ -51,8 +51,8 @@ Como o backend será construído sob medida (API própria, em repositório separ
 
 - Assets estáticos (JS/CSS/fonts) servidos automaticamente pela Edge Network da hospedagem.
 - Imagens de produto:
-  - Armazenamento em bucket externo (Cloudflare R2, AWS S3 ou similar) gerenciado pelo backend/admin.
-  - Otimização e entrega via `next/image` ou serviço dedicado (Cloudinary/Imgix) se o volume/variedade de imagens justificar.
+  - **Implementado (2026-09-07):** armazenamento é responsabilidade do **backend** (`IArmazenamentoDeImagens` — hoje disco local do servidor, trocável por Object Storage OCI depois, nunca bucket externo tipo R2/S3 — decisão do backend, ver `ecomerce-backend/.claude/plano-ecommerce.md` seção 2.10). O frontend só recebe a URL absoluta pronta no JSON da API (`imagemPrincipalUrl`/`imagens[].url`) e a passa direto pro `next/image`; `next.config.ts` precisa liberar o host do backend em `images.remotePatterns` (lido de `BACKEND_URL` em build/start) — é o único lugar do app em que uma URL derivada de `BACKEND_URL` chega ao browser de propósito, porque imagem (diferente de dado de API) é buscada pelo browser direto, não tem como esconder.
+  - Otimização e entrega via `next/image`; Cloudinary/Imgix fica como evolução futura só se volume/variedade justificar — não decidido ainda.
 - Política de cache HTTP definida por rota: páginas de catálogo com ISR (revalidação periódica), páginas de conteúdo estático com cache longo, checkout sempre dinâmico/sem cache.
 
 ### 1.5 Observabilidade e Monitoramento
@@ -74,7 +74,8 @@ Como o backend será construído sob medida (API própria, em repositório separ
 - Backend custom vive em repositório separado e expõe uma API (REST ou GraphQL — decisão a alinhar com quem for construí-lo).
 - Frontend consome a API via `BACKEND_URL` (variável server-only, sem prefixo `NEXT_PUBLIC_`) — o browser nunca fala direto com o backend nem conhece sua URL real (host do App Service/VM). Toda chamada roda em Server Component/Route Handler/Server Action; um client component que precise disparar uma mutação (ex.: `checkout/pagamento`) chama uma Server Action (`"use server"`), que faz o fetch no servidor — decidido em 2026-09-06 depois de notar que `NEXT_PUBLIC_API_URL` (versão anterior) vazava a URL de infraestrutura do backend no bundle do cliente.
 - Um ambiente de API por ambiente de frontend: `api-dev`, `api-staging`, `api` (produção) — evita staging do front acidentalmente escrever em dados de produção.
-- CORS liberado no backend apenas para os domínios conhecidos do frontend (produção, staging, previews via wildcard controlado).
+- CORS liberado no backend apenas para os domínios conhecidos do frontend (produção, staging, previews via wildcard controlado) — **na prática, com toda chamada rodando server-side (ver acima), CORS não entra em jogo hoje** (é enforcement de browser, não existe requisição cross-origin feita pelo browser); só volta a importar se algum dia um client component chamar a API direto.
+- **Catálogo conectado de verdade (2026-09-07):** `getCategories`/`getCategoryBySlug`/`getProducts`/`getProductBySlug` (`src/lib/api/catalog.ts`) chamam `api/v1/categorias`/`api/v1/produtos` reais sempre, sem desvio de mock — traduzem o formato da API (português, categoria em árvore, preço decimal, sem `categorySlug`/`imageAlt`/`inStock` prontos) pro contrato `Category`/`Product` que o resto do app usa. Exigiu adicionar `Slug` a `Produto` no backend (não existia — só `Sku`). Carrinho/Checkout continuam mockados (`NEXT_PUBLIC_API_MOCKING=enabled`) — ver seção 6/Fase 3 pra quando isso for endereçado; o modelo de carrinho da API (recurso no servidor, item a item) é incompatível com o payload único que o checkout manda hoje.
 - Autenticação: token JWT (access + refresh) ou sessão via cookie `httpOnly` — decisão a formalizar na seção de tecnologias/auth abaixo, mas a infraestrutura precisa suportar cookies cross-domain se front e API ficarem em domínios/subdomínios diferentes.
 
 ### 1.8 Custos estimados (ordem de grandeza, a validar)
@@ -135,13 +136,26 @@ Como o backend será construído sob medida (API própria, em repositório separ
 
 ### 2.9 Pagamentos e Checkout
 
-- Integração via SDK do gateway escolhido (ex.: Stripe, Mercado Pago, PagSeguro/PagBank) no frontend, com a orquestração de pedido/pagamento feita pela API própria no backend.
-- Checkout com etapas claras: carrinho → identificação → endereço/frete → pagamento → confirmação.
+- Gateway **decidido: PagBank** (2026-09-07, mesma decisão registrada no plano do backend) — SDK/integração no frontend ainda não implementada; checkout hoje continua 100% mockado (ver seção 1.7).
+- Checkout com etapas claras: carrinho → identificação → endereço/frete → pagamento → confirmação. Fluxo de páginas já implementado (`/checkout/*`), só o "Finalizar pedido" que ainda chama um mock em vez da API própria.
 
 ### 2.10 Autenticação
 
-- Fluxo de login/cadastro consumindo endpoints da API própria (JWT access + refresh token, ou sessão via cookie `httpOnly` gerenciada pelo backend).
-- Rotas protegidas no Next.js via middleware, verificando sessão antes de renderizar áreas de conta/pedidos.
+Duas áreas distintas, com estado bem diferente:
+
+- **Conta do cliente** (login/cadastro/histórico de pedidos, seção 3 "Fases") — **ainda não implementado**. Vai consumir os mesmos endpoints da API própria (`/api/v1/auth/*`) que a área admin abaixo já usa, mas a decisão de sessão via cookie `httpOnly` vs. outro mecanismo, e o próprio fluxo de UI, ainda estão em aberto.
+- **Área administrativa `/admin`** — **implementada (2026-09-07)**, ver seção 2.10.1 abaixo.
+
+#### 2.10.1 Área administrativa (`/admin`)
+
+Login exclusivo pra quem tem role `admin` na API própria — não existe cadastro nem é a mesma coisa que "conta do cliente" acima (aliás, hoje a área admin é a **única** parte do app com qualquer autenticação implementada).
+
+- **Rotas**: `/admin/login` (form, fora da guarda de rota — ver route group abaixo), `/admin` (painel), `/admin/categorias` (listar/criar), `/admin/produtos` (listar todos, inclusive sem estoque), `/admin/produtos/novo` (criar), `/admin/produtos/[id]` (detalhe — variantes, estoque, upload de imagem).
+- **Sessão**: cookie `httpOnly` **do próprio frontend** (`admin_session`, `path=/admin`) guardando só o access token da API. Deliberadamente **não** repassa o refresh token que a API seta em `/api/v1/auth/login` (esse cookie é `SameSite=None; Secure`, escopado ao domínio do _backend_ — não faz sentido repassar pro browser já que o browser nunca fala com o backend direto, ver seção 1.7). Consequência aceita: **sem renovação automática** — sessão expira em ~15 min (igual o access token da API) e pede login de novo. Renovação automática (chamando `/api/v1/auth/atualizar-token` via um Route Handler/Server Action que faça o proxy do cookie de refresh) fica como evolução futura, não implementada.
+- **Autorização**: no login (`loginAdmin`, Server Action em `src/lib/api/admin-auth.ts`), o JWT recebido é decodificado (sem verificar assinatura — seguro aqui porque veio direto da própria API confiável) só pra checar a claim de role; login recusado se não tiver `admin`.
+- **Guarda de rota**: route group `src/app/admin/(protegido)/layout.tsx` — checa o cookie e redireciona pra `/admin/login` se ausente. `/admin/login` fica **fora** do route group de propósito (senão o redirect do layout entraria em loop nele mesmo).
+- **Limitação conhecida**: o header/footer da loja pública (layout raiz, `src/app/layout.tsx`) aparecem em volta do admin também — layout raiz é único e compartilhado por todo o app; separar visualmente exigiria reestruturar as rotas do site inteiro em múltiplos root layouts, não feito (funciona, só não é visualmente separado).
+- Mutações (criar categoria/produto, adicionar variante/imagem) são Server Actions que chamam a API própria com `Authorization: Bearer <token do cookie>` — nunca expostas ao browser como fetch direto.
 
 ### 2.11 Analytics e Marketing
 
@@ -228,8 +242,10 @@ ecomerce-frontend/
 1. Validar com quem for construir o backend: protocolo da API (REST vs GraphQL), formato de autenticação (JWT vs cookie de sessão) e contrato inicial de endpoints (produtos, carrinho, pedidos, usuário).
 2. Criar o projeto Next.js + TypeScript + Tailwind neste repositório (Fase 0).
 3. Configurar CI (GitHub Actions) e deploy automático na Vercel para os três ambientes.
-4. Definir o gateway de pagamento e o provedor de frete a serem integrados.
+4. ~~Definir o gateway de pagamento~~ — **resolvido em 2026-09-07: PagBank** (decisão espelhada no plano do backend). Falta integrar de verdade no checkout (hoje é mock) e definir o provedor de frete, que segue em aberto.
 5. Detalhar wireframes/design das páginas principais antes de iniciar a Fase 1.
+6. Conectar Carrinho/Checkout à API própria de verdade (hoje só Catálogo está conectado, ver seção 1.7) — exige decisão de arquitetura (sincronizar carrinho item a item com o backend, ou endpoint de checkout "de uma vez"), não feito ainda.
+7. Implementar login/cadastro da **conta do cliente** (distinto da área admin, que já existe — ver seção 2.10).
 
 ---
 
