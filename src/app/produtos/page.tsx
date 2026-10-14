@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getCategories, getProducts } from "@/lib/api/catalog";
 import { ProductGrid } from "@/features/catalog/components/product-grid";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { PageHeader } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
   title: "Produtos",
@@ -15,6 +18,15 @@ function buildHref(base: URLSearchParams, overrides: Record<string, string | und
   }
   const qs = params.toString();
   return qs ? `/produtos?${qs}` : "/produtos";
+}
+
+function chipClasses(ativo: boolean) {
+  return cn(
+    "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+    ativo
+      ? "border-primary bg-primary text-primary-foreground"
+      : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:text-foreground",
+  );
 }
 
 export default async function ProductsPage(props: PageProps<"/produtos">) {
@@ -32,24 +44,32 @@ export default async function ProductsPage(props: PageProps<"/produtos">) {
   if (categoria) currentParams.set("categoria", categoria);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {q ? `Resultados para "${q}"` : "Todos os produtos"}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          {total} {total === 1 ? "produto encontrado" : "produtos encontrados"}
-        </p>
-      </header>
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <Breadcrumbs items={[{ label: "Início", href: "/" }, { label: "Produtos" }]} />
+      <PageHeader
+        title={q ? `Resultados para "${q}"` : "Todos os produtos"}
+        description={`${total} ${total === 1 ? "produto encontrado" : "produtos encontrados"}`}
+        actions={
+          q ? (
+            <Link
+              href={buildHref(currentParams, { q: undefined })}
+              className="text-sm font-medium text-accent hover:text-accent-hover"
+            >
+              Limpar busca
+            </Link>
+          ) : undefined
+        }
+      />
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div
+        role="group"
+        aria-label="Filtrar por categoria"
+        className="-mx-4 mb-8 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+      >
         <Link
           href={buildHref(currentParams, { categoria: undefined })}
-          className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-            !categoria
-              ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-black"
-              : "border-zinc-300 text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300"
-          }`}
+          aria-current={!categoria ? "true" : undefined}
+          className={chipClasses(!categoria)}
         >
           Todas
         </Link>
@@ -57,11 +77,8 @@ export default async function ProductsPage(props: PageProps<"/produtos">) {
           <Link
             key={category.slug}
             href={buildHref(currentParams, { categoria: category.slug })}
-            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-              categoria === category.slug
-                ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-black"
-                : "border-zinc-300 text-zinc-700 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-300"
-            }`}
+            aria-current={categoria === category.slug ? "true" : undefined}
+            className={chipClasses(categoria === category.slug)}
           >
             {category.name}
           </Link>

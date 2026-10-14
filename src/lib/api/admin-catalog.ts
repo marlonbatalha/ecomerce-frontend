@@ -144,6 +144,64 @@ export async function adicionarImagemAdmin(
   return { success: true };
 }
 
+/** Lança em vez de devolver FormState: chamadas por botões de `<form action>` simples, sem
+ * useActionState — falha cai no error boundary (raro: só se o produto/imagem sumiu no meio). */
+async function enviarAlteracaoDeImagem(produtoId: string, caminho: string, init: RequestInit) {
+  const token = await exigirTokenAdmin();
+
+  const res = await fetch(apiUrl(`/produtos/${produtoId}${caminho}`), {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...init.headers,
+    },
+  });
+
+  if (res.status === 401) redirect("/admin/login");
+  if (!res.ok) throw new Error(await extrairErro(res));
+
+  revalidatePath(`/admin/produtos/${produtoId}`);
+  revalidatePath("/produtos");
+}
+
+export async function removerImagemAdmin(produtoId: string, imagemId: string): Promise<void> {
+  await enviarAlteracaoDeImagem(produtoId, `/imagens/${imagemId}`, { method: "DELETE" });
+}
+
+/**
+ * Move a imagem uma posição pra frente/trás (ou pro início, com "principal" — a primeira é a usada
+ * na listagem da loja). A API recebe a ordem completa, então monta a lista nova a partir da atual.
+ */
+export async function moverImagemAdmin(
+  produtoId: string,
+  imagemId: string,
+  direcao: "anterior" | "proxima" | "principal",
+): Promise<void> {
+  const produto = await obterProdutoAdmin(produtoId);
+  if (!produto) throw new Error("Produto não encontrado.");
+
+  const ids = [...produto.imagens].sort((a, b) => a.ordem - b.ordem).map((imagem) => imagem.id);
+  const indice = ids.indexOf(imagemId);
+  if (indice === -1) return;
+
+  const destino =
+    direcao === "principal"
+      ? 0
+      : direcao === "anterior"
+        ? Math.max(0, indice - 1)
+        : Math.min(ids.length - 1, indice + 1);
+  if (destino === indice) return;
+
+  ids.splice(indice, 1);
+  ids.splice(destino, 0, imagemId);
+
+  await enviarAlteracaoDeImagem(produtoId, "/imagens/ordem", {
+    method: "PUT",
+    body: JSON.stringify({ imagemIds: ids }),
+  });
+}
+
 export type ProdutoAdminResumo = {
   id: string;
   nome: string;

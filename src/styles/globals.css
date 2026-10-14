@@ -1,26 +1,141 @@
 @import "tailwindcss";
 
+/*
+ * Tema claro/escuro controlado por `data-theme` no <html> (não pela media query): o script inline
+ * em app/layout.tsx aplica a preferência salva (ou a do sistema) antes da primeira pintura, e o
+ * seletor de tema (features/theme) troca em tempo real. A variante `dark:` do Tailwind segue o
+ * mesmo atributo — assim `dark:` e os tokens abaixo nunca discordam.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Tokens semânticos — componentes usam `bg-surface`, `text-muted-foreground`, `bg-primary`, etc.
+ * em vez de cores fixas (zinc-900, white...), então trocar de tema (ou de paleta) é só aqui.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.21 0 0);
+  --surface: oklch(1 0 0);
+  --surface-muted: oklch(0.962 0 0);
+  --border: oklch(0.915 0 0);
+  --border-strong: oklch(0.84 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+
+  --primary: oklch(0.21 0 0);
+  --primary-hover: oklch(0.33 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --accent: oklch(0.21 0 0);
+  --accent-hover: oklch(0.38 0 0);
+  --accent-foreground: oklch(0.99 0 0);
+  --accent-soft: oklch(0.94 0 0);
+
+  --success: oklch(0.52 0.14 152);
+  --success-soft: oklch(0.96 0.04 152);
+  --danger: oklch(0.56 0.21 25);
+  --danger-soft: oklch(0.965 0.025 25);
+  --warning: oklch(0.58 0.14 65);
+  --warning-soft: oklch(0.97 0.05 85);
+
+  --shadow-color: 0 0% 10%;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: oklch(0.155 0 0);
+  --foreground: oklch(0.96 0 0);
+  --surface: oklch(0.195 0 0);
+  --surface-muted: oklch(0.235 0 0);
+  --border: oklch(0.29 0 0);
+  --border-strong: oklch(0.39 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+
+  --primary: oklch(0.96 0 0);
+  --primary-hover: oklch(0.86 0 0);
+  --primary-foreground: oklch(0.18 0 0);
+
+  --accent: oklch(0.93 0 0);
+  --accent-hover: oklch(0.8 0 0);
+  --accent-foreground: oklch(0.16 0 0);
+  --accent-soft: oklch(0.28 0 0);
+
+  --success: oklch(0.76 0.15 152);
+  --success-soft: oklch(0.28 0.05 152);
+  --danger: oklch(0.72 0.17 25);
+  --danger-soft: oklch(0.29 0.06 25);
+  --warning: oklch(0.8 0.13 80);
+  --warning-soft: oklch(0.3 0.05 80);
+
+  --shadow-color: 0 0% 0%;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --shadow-card:
+    0 1px 2px hsl(var(--shadow-color) / 0.06), 0 1px 3px hsl(var(--shadow-color) / 0.08);
+  --shadow-elevated:
+    0 4px 6px -1px hsl(var(--shadow-color) / 0.08), 0 12px 24px -6px hsl(var(--shadow-color) / 0.16);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  /* Borda padrão de todo elemento segue o token (Tailwind v4 usa currentColor por padrão). */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  /* Foco visível consistente — só pra navegação por teclado (não aparece no clique). */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

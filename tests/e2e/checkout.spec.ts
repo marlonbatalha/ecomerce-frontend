@@ -21,7 +21,7 @@ test("adiciona um produto ao carrinho a partir da página do produto", async ({ 
   await page.goto("/produtos/fone-de-ouvido-bluetooth");
   await addToCart(page);
 
-  await page.getByRole("link", { name: /carrinho/i }).click();
+  await page.getByRole("link", { name: /^carrinho/i }).click();
   await expect(page).toHaveURL(/\/carrinho$/);
   await expect(page.getByText("Fone de Ouvido Bluetooth")).toBeVisible();
 });

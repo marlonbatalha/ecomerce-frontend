@@ -1,30 +1,43 @@
 import Link from "next/link";
+import { ChevronRightIcon, PackageIcon, TagIcon } from "@/components/icons";
+import { PageHeader } from "@/components/ui/card";
+
+const ATALHOS = [
+  {
+    href: "/admin/categorias",
+    titulo: "Categorias",
+    texto: "Criar e ver categorias do catálogo.",
+    Icone: TagIcon,
+  },
+  {
+    href: "/admin/produtos",
+    titulo: "Produtos",
+    texto: "Cadastrar produto, variantes, estoque e imagens.",
+    Icone: PackageIcon,
+  },
+];
 
 export default function AdminPainelPage() {
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Painel admin
-      </h1>
+      <PageHeader title="Painel admin" description="Gerencie o catálogo da loja." />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/admin/categorias"
-          className="rounded-lg border border-zinc-200 p-6 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-        >
-          <h2 className="font-medium text-zinc-900 dark:text-zinc-50">Categorias</h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Criar e ver categorias do catálogo.
-          </p>
-        </Link>
-        <Link
-          href="/admin/produtos"
-          className="rounded-lg border border-zinc-200 p-6 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-        >
-          <h2 className="font-medium text-zinc-900 dark:text-zinc-50">Produtos</h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Cadastrar produto e adicionar variante/estoque.
-          </p>
-        </Link>
+        {ATALHOS.map(({ href, titulo, texto, Icone }) => (
+          <Link
+            key={href}
+            href={href}
+            className="group flex items-center gap-4 rounded-2xl border border-border bg-surface p-6 shadow-card transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-elevated"
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+              <Icone className="h-6 w-6" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-semibold">{titulo}</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">{texto}</p>
+            </div>
+            <ChevronRightIcon className="h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        ))}
       </div>
     </div>
   );

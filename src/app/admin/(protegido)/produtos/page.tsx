@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { PackageIcon, PlusIcon } from "@/components/icons";
+import { Badge } from "@/components/ui/badge";
+import { buttonClasses } from "@/components/ui/button";
+import { Card, EmptyState, PageHeader } from "@/components/ui/card";
 import { getCategories } from "@/lib/api/catalog";
 import { listarProdutosAdmin } from "@/lib/api/admin-catalog";
 import { formatCurrency } from "@/lib/format";
@@ -9,61 +13,70 @@ export default async function AdminProdutosPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Produtos
-        </h1>
-        <Link
-          href="/admin/produtos/novo"
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-300"
-        >
-          Novo produto
-        </Link>
-      </div>
+      <PageHeader
+        title="Produtos"
+        description={`${produtos.length} ${produtos.length === 1 ? "produto cadastrado" : "produtos cadastrados"}`}
+        actions={
+          <Link href="/admin/produtos/novo" className={buttonClasses()}>
+            <PlusIcon className="h-4 w-4" />
+            Novo produto
+          </Link>
+        }
+      />
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="text-zinc-500 dark:text-zinc-400">
-            <tr className="border-b border-zinc-200 dark:border-zinc-800">
-              <th className="py-2 pr-4 font-medium">Nome</th>
-              <th className="py-2 pr-4 font-medium">SKU</th>
-              <th className="py-2 pr-4 font-medium">Categoria</th>
-              <th className="py-2 pr-4 font-medium">Preço</th>
-              <th className="py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {produtos.map((produto) => (
-              <tr key={produto.id}>
-                <td className="py-3 pr-4">
-                  <Link
-                    href={`/admin/produtos/${produto.id}`}
-                    className="text-zinc-900 hover:underline dark:text-zinc-50"
-                  >
-                    {produto.nome}
-                  </Link>
-                </td>
-                <td className="py-3 pr-4 text-zinc-500 dark:text-zinc-400">{produto.sku}</td>
-                <td className="py-3 pr-4 text-zinc-500 dark:text-zinc-400">
-                  {nomeDaCategoria.get(produto.categoriaId) ?? "—"}
-                </td>
-                <td className="py-3 pr-4">{formatCurrency(Math.round(produto.preco * 100))}</td>
-                <td className="py-3">{produto.ativo ? "Ativo" : "Inativo"}</td>
-              </tr>
-            ))}
-            {produtos.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400"
-                >
-                  Nenhum produto ainda.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {produtos.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<PackageIcon className="h-7 w-7" />}
+            title="Nenhum produto ainda"
+            description="Cadastre o primeiro produto para ele aparecer aqui."
+          />
+        </Card>
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-surface-muted/60 text-xs tracking-wide text-muted-foreground uppercase">
+                <tr>
+                  <th className="px-5 py-3 font-medium">Nome</th>
+                  <th className="px-5 py-3 font-medium">SKU</th>
+                  <th className="px-5 py-3 font-medium">Categoria</th>
+                  <th className="px-5 py-3 text-right font-medium">Preço</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {produtos.map((produto) => (
+                  <tr key={produto.id} className="transition-colors hover:bg-surface-muted/50">
+                    <td className="px-5 py-3.5">
+                      <Link
+                        href={`/admin/produtos/${produto.id}`}
+                        className="font-medium hover:text-accent"
+                      >
+                        {produto.nome}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3.5 font-mono text-xs text-muted-foreground">
+                      {produto.sku}
+                    </td>
+                    <td className="px-5 py-3.5 text-muted-foreground">
+                      {nomeDaCategoria.get(produto.categoriaId) ?? "—"}
+                    </td>
+                    <td className="px-5 py-3.5 text-right tabular-nums">
+                      {formatCurrency(Math.round(produto.preco * 100))}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <Badge tom={produto.ativo ? "success" : "neutral"}>
+                        {produto.ativo ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

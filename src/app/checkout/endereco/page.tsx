@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { ArrowRightIcon, ChevronLeftIcon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, Input } from "@/components/ui/field";
 import { CheckoutSteps } from "@/features/checkout/components/checkout-steps";
+import { OrderSummary } from "@/features/checkout/components/order-summary";
+import { FLAT_SHIPPING_CENTS } from "@/features/checkout/constants";
 import { useHasCartHydrated } from "@/features/cart/hooks/use-hydrated";
 import { useCartStore } from "@/features/cart/store";
 import { addressSchema, type AddressData } from "@/features/checkout/schemas";
@@ -13,19 +20,19 @@ import { useCheckoutStore } from "@/features/checkout/store";
 export default function AddressPage() {
   const router = useRouter();
   const hasCartHydrated = useHasCartHydrated();
-  const cartItemsCount = useCartStore((state) => state.items.length);
+  const items = useCartStore((state) => state.items);
 
   const identification = useCheckoutStore((state) => state.identification);
   const address = useCheckoutStore((state) => state.address);
   const setAddress = useCheckoutStore((state) => state.setAddress);
 
   useEffect(() => {
-    if (hasCartHydrated && cartItemsCount === 0) {
+    if (hasCartHydrated && items.length === 0) {
       router.replace("/carrinho");
       return;
     }
     if (!identification) router.replace("/checkout/identificacao");
-  }, [hasCartHydrated, cartItemsCount, identification, router]);
+  }, [hasCartHydrated, items.length, identification, router]);
 
   const {
     register,
@@ -54,122 +61,118 @@ export default function AddressPage() {
   return (
     <div>
       <CheckoutSteps current="endereco" />
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Para onde enviamos?
-      </h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-md space-y-4">
-        <div>
-          <label htmlFor="zipCode" className="mb-1 block text-sm font-medium">
-            CEP
-          </label>
-          <input
-            id="zipCode"
-            type="text"
-            inputMode="numeric"
-            placeholder="00000-000"
-            autoComplete="postal-code"
-            {...register("zipCode")}
-            className="w-full max-w-[10rem] rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          {errors.zipCode && <p className="mt-1 text-xs text-red-600">{errors.zipCode.message}</p>}
-        </div>
+      <div className="grid items-start gap-8 lg:grid-cols-[1fr_22rem]">
+        <Card className="p-6 sm:p-8">
+          <h1 className="text-2xl font-semibold tracking-tight">Para onde enviamos?</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Entregando para{" "}
+            <span className="font-medium text-foreground">{identification.name}</span>
+          </p>
 
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
-            <label htmlFor="street" className="mb-1 block text-sm font-medium">
-              Rua
-            </label>
-            <input
-              id="street"
-              type="text"
-              autoComplete="address-line1"
-              {...register("street")}
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            {errors.street && <p className="mt-1 text-xs text-red-600">{errors.street.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="number" className="mb-1 block text-sm font-medium">
-              Número
-            </label>
-            <input
-              id="number"
-              type="text"
-              {...register("number")}
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            {errors.number && <p className="mt-1 text-xs text-red-600">{errors.number.message}</p>}
-          </div>
-        </div>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-5">
+            <Field
+              id="zipCode"
+              label="CEP"
+              error={errors.zipCode?.message}
+              className="max-w-[12rem]"
+            >
+              {(props) => (
+                <Input
+                  {...props}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="00000-000"
+                  autoComplete="postal-code"
+                  {...register("zipCode")}
+                />
+              )}
+            </Field>
 
-        <div>
-          <label htmlFor="complement" className="mb-1 block text-sm font-medium">
-            Complemento <span className="text-zinc-400">(opcional)</span>
-          </label>
-          <input
-            id="complement"
-            type="text"
-            autoComplete="address-line2"
-            {...register("complement")}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Field id="street" label="Rua" error={errors.street?.message} className="col-span-2">
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="text"
+                    autoComplete="address-line1"
+                    {...register("street")}
+                  />
+                )}
+              </Field>
+              <Field id="number" label="Número" error={errors.number?.message}>
+                {(props) => <Input {...props} type="text" {...register("number")} />}
+              </Field>
+            </div>
 
-        <div>
-          <label htmlFor="neighborhood" className="mb-1 block text-sm font-medium">
-            Bairro
-          </label>
-          <input
-            id="neighborhood"
-            type="text"
-            {...register("neighborhood")}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          {errors.neighborhood && (
-            <p className="mt-1 text-xs text-red-600">{errors.neighborhood.message}</p>
-          )}
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="complement"
+                label={
+                  <>
+                    Complemento{" "}
+                    <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </>
+                }
+              >
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="text"
+                    autoComplete="address-line2"
+                    {...register("complement")}
+                  />
+                )}
+              </Field>
+              <Field id="neighborhood" label="Bairro" error={errors.neighborhood?.message}>
+                {(props) => <Input {...props} type="text" {...register("neighborhood")} />}
+              </Field>
+            </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
-            <label htmlFor="city" className="mb-1 block text-sm font-medium">
-              Cidade
-            </label>
-            <input
-              id="city"
-              type="text"
-              autoComplete="address-level2"
-              {...register("city")}
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="state" className="mb-1 block text-sm font-medium">
-              UF
-            </label>
-            <input
-              id="state"
-              type="text"
-              maxLength={2}
-              autoComplete="address-level1"
-              placeholder="SP"
-              {...register("state")}
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm uppercase outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            {errors.state && <p className="mt-1 text-xs text-red-600">{errors.state.message}</p>}
-          </div>
-        </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Field id="city" label="Cidade" error={errors.city?.message} className="col-span-2">
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="text"
+                    autoComplete="address-level2"
+                    {...register("city")}
+                  />
+                )}
+              </Field>
+              <Field id="state" label="UF" error={errors.state?.message}>
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="text"
+                    maxLength={2}
+                    autoComplete="address-level1"
+                    placeholder="SP"
+                    className="uppercase"
+                    {...register("state")}
+                  />
+                )}
+              </Field>
+            </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-300"
-        >
-          Continuar para o pagamento
-        </button>
-      </form>
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+              <Link
+                href="/checkout/identificacao"
+                className="inline-flex items-center justify-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ChevronLeftIcon className="h-4 w-4" />
+                Voltar
+              </Link>
+              <Button type="submit" tamanho="lg" disabled={isSubmitting}>
+                Continuar para o pagamento
+                <ArrowRightIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        {hasCartHydrated && <OrderSummary items={items} shippingInCents={FLAT_SHIPPING_CENTS} />}
+      </div>
     </div>
   );
 }

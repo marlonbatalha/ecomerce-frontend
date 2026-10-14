@@ -1,6 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
+import { AlertIcon, BagIcon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input, Label } from "@/components/ui/field";
 import { loginAdmin, type LoginState } from "@/lib/api/admin-auth";
 
 const ESTADO_INICIAL: LoginState = {};
@@ -9,48 +13,46 @@ export default function AdminLoginPage() {
   const [state, formAction, isPending] = useActionState(loginAdmin, ESTADO_INICIAL);
 
   return (
-    <div className="mx-auto mt-20 w-full max-w-sm px-4">
-      <h1 className="mb-6 text-xl font-semibold text-zinc-900 dark:text-zinc-50">Admin</h1>
+    <div className="flex flex-1 items-center justify-center px-4 py-16">
+      <Card className="w-full max-w-sm p-8">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <BagIcon className="h-5 w-5" />
+        </span>
+        <h1 className="mt-5 text-xl font-semibold tracking-tight">Admin</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Entre com sua conta de administrador.</p>
 
-      <form action={formAction} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium">
-            E-mail
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </div>
+        <form action={formAction} className="mt-6 space-y-4">
+          <div>
+            <Label htmlFor="email">E-mail</Label>
+            <Input id="email" name="email" type="email" required autoComplete="email" />
+          </div>
 
-        <div>
-          <label htmlFor="senha" className="mb-1 block text-sm font-medium">
-            Senha
-          </label>
-          <input
-            id="senha"
-            name="senha"
-            type="password"
-            required
-            autoComplete="current-password"
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </div>
+          <div>
+            <Label htmlFor="senha">Senha</Label>
+            <Input
+              id="senha"
+              name="senha"
+              type="password"
+              required
+              autoComplete="current-password"
+            />
+          </div>
 
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+          {state.error && (
+            <p
+              role="alert"
+              className="flex items-center gap-2 rounded-xl bg-danger-soft px-3 py-2.5 text-sm text-danger"
+            >
+              <AlertIcon className="h-4 w-4 shrink-0" />
+              {state.error}
+            </p>
+          )}
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-300"
-        >
-          {isPending ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending ? "Entrando..." : "Entrar"}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

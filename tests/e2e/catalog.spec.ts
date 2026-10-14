@@ -8,13 +8,16 @@ test("navega da home até um produto", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/produtos\/fone-de-ouvido-bluetooth$/);
   await expect(page.getByRole("heading", { name: /fone de ouvido bluetooth/i })).toBeVisible();
-  await expect(page.getByText("R$")).toBeVisible();
+  await expect(page.getByText(/R\$/).first()).toBeVisible();
 });
 
 test("navega até uma categoria pelo menu", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("link", { name: "Moda" }).click();
+  await page
+    .getByRole("navigation", { name: "Categorias" })
+    .getByRole("link", { name: "Moda" })
+    .click();
 
   await expect(page).toHaveURL(/\/categorias\/moda$/);
   await expect(page.getByRole("heading", { name: "Moda" })).toBeVisible();

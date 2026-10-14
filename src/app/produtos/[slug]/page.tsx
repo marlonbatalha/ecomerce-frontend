@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCategoryBySlug, getProductBySlug, getProducts } from "@/lib/api/catalog";
 import { formatCurrency } from "@/lib/format";
 import { ProductImage } from "@/components/product-image";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { Badge } from "@/components/ui/badge";
 import { AddToCartForm } from "@/features/cart/components/add-to-cart-form";
+import { ProductGrid } from "@/features/catalog/components/product-grid";
 
 export async function generateStaticParams() {
   const { items: products } = await getProducts({ pageSize: 100 });
@@ -32,7 +34,11 @@ export default async function ProductPage(props: PageProps<"/produtos/[slug]">) 
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const category = await getCategoryBySlug(product.categorySlug);
+  const [category, { items: relacionados }] = await Promise.all([
+    getCategoryBySlug(product.categorySlug),
+    getProducts({ category: product.categorySlug, pageSize: 5 }),
+  ]);
+  const outrosDaCategoria = relacionados.filter((item) => item.id !== product.id).slice(0, 4);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -51,49 +57,59 @@ export default async function ProductPage(props: PageProps<"/produtos/[slug]">) 
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-      {category && (
-        <nav className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
-          <Link href={`/categorias/${category.slug}`} className="hover:underline">
-            {category.name}
-          </Link>
-        </nav>
-      )}
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <Breadcrumbs
+        items={[
+          { label: "Início", href: "/" },
+          ...(category ? [{ label: category.name, href: `/categorias/${category.slug}` }] : []),
+          { label: product.name },
+        ]}
+      />
 
-      <div className="grid gap-8 sm:grid-cols-2">
-        <div className="relative aspect-square rounded-lg bg-zinc-100 dark:bg-zinc-900">
+      <div className="grid gap-8 md:grid-cols-2 lg:gap-14">
+        <div className="relative aspect-square overflow-hidden rounded-3xl border border-border bg-surface-muted">
           <ProductImage
             src={product.imageUrl}
             alt={product.imageAlt}
-            className="object-contain p-10"
-            sizes="(min-width: 640px) 50vw, 100vw"
+            className="object-contain p-10 sm:p-14"
+            sizes="(min-width: 768px) 50vw, 100vw"
             priority
           />
         </div>
 
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <div className="flex flex-col">
+          {category && (
+            <p className="text-sm font-medium tracking-wide text-accent uppercase">
+              {category.name}
+            </p>
+          )}
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-balance">
             {product.name}
           </h1>
-          <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            {formatCurrency(product.priceInCents)}
-          </p>
 
-          <p
-            className={
-              product.inStock
-                ? "mt-2 text-sm font-medium text-green-700 dark:text-green-500"
-                : "mt-2 text-sm font-medium text-red-700 dark:text-red-500"
-            }
-          >
-            {product.inStock ? "Em estoque" : "Esgotado"}
-          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <p className="text-3xl font-semibold tracking-tight tabular-nums">
+              {formatCurrency(product.priceInCents)}
+            </p>
+            <Badge tom={product.inStock ? "success" : "danger"}>
+              {product.inStock ? "Em estoque" : "Esgotado"}
+            </Badge>
+          </div>
 
-          <p className="mt-6 text-zinc-600 dark:text-zinc-400">{product.description}</p>
+          <p className="mt-6 leading-relaxed text-pretty text-muted-foreground">
+            {product.description}
+          </p>
 
           <AddToCartForm product={product} />
         </div>
       </div>
+
+      {outrosDaCategoria.length > 0 && (
+        <section className="mt-16">
+          <h2 className="mb-5 text-xl font-semibold tracking-tight">Você também pode gostar</h2>
+          <ProductGrid products={outrosDaCategoria} />
+        </section>
+      )}
 
       {/* Dados estruturados p/ SEO (schema.org Product) — seção 2.7 do plano. */}
       <script

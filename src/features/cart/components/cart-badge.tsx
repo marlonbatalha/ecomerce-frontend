@@ -14,11 +14,11 @@ export function CartBadge() {
     <Link
       href="/carrinho"
       aria-label={`Carrinho${count > 0 ? `, ${count} ${count === 1 ? "item" : "itens"}` : ""}`}
-      className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
     >
       <CartIcon className="h-5 w-5" />
       {count > 0 && (
-        <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-zinc-900 px-1 text-[10px] font-medium text-white dark:bg-zinc-100 dark:text-black">
+        <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground tabular-nums ring-2 ring-background">
           {count}
         </span>
       )}

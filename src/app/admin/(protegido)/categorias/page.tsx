@@ -1,3 +1,5 @@
+import { TagIcon } from "@/components/icons";
+import { Card, EmptyState, PageHeader } from "@/components/ui/card";
 import { getCategories } from "@/lib/api/catalog";
 import { CategoriaForm } from "./categoria-form";
 
@@ -5,26 +7,27 @@ export default async function AdminCategoriasPage() {
   const categorias = await getCategories();
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Categorias
-      </h1>
+    <div className="max-w-3xl">
+      <PageHeader title="Categorias" description="Organize o catálogo da loja." />
 
-      <CategoriaForm />
+      <Card className="p-6">
+        <CategoriaForm />
+      </Card>
 
-      <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-        {categorias.map((categoria) => (
-          <li key={categoria.id} className="flex items-center justify-between py-3">
-            <span className="text-zinc-900 dark:text-zinc-50">{categoria.name}</span>
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">/{categoria.slug}</span>
-          </li>
-        ))}
-        {categorias.length === 0 && (
-          <li className="py-3 text-sm text-zinc-500 dark:text-zinc-400">
-            Nenhuma categoria ainda.
-          </li>
+      <Card className="mt-6 overflow-hidden">
+        {categorias.length === 0 ? (
+          <EmptyState icon={<TagIcon className="h-7 w-7" />} title="Nenhuma categoria ainda" />
+        ) : (
+          <ul className="divide-y divide-border">
+            {categorias.map((categoria) => (
+              <li key={categoria.id} className="flex items-center justify-between gap-4 px-6 py-4">
+                <span className="font-medium">{categoria.name}</span>
+                <span className="font-mono text-xs text-muted-foreground">/{categoria.slug}</span>
+              </li>
+            ))}
+          </ul>
         )}
-      </ul>
+      </Card>
     </div>
   );
 }

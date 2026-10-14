@@ -4,7 +4,13 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { ArrowRightIcon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, Input } from "@/components/ui/field";
 import { CheckoutSteps } from "@/features/checkout/components/checkout-steps";
+import { OrderSummary } from "@/features/checkout/components/order-summary";
+import { FLAT_SHIPPING_CENTS } from "@/features/checkout/constants";
 import { useHasCartHydrated } from "@/features/cart/hooks/use-hydrated";
 import { useCartStore } from "@/features/cart/store";
 import { identificationSchema, type IdentificationData } from "@/features/checkout/schemas";
@@ -13,14 +19,14 @@ import { useCheckoutStore } from "@/features/checkout/store";
 export default function IdentificationPage() {
   const router = useRouter();
   const hasCartHydrated = useHasCartHydrated();
-  const cartItemsCount = useCartStore((state) => state.items.length);
+  const items = useCartStore((state) => state.items);
 
   const identification = useCheckoutStore((state) => state.identification);
   const setIdentification = useCheckoutStore((state) => state.setIdentification);
 
   useEffect(() => {
-    if (hasCartHydrated && cartItemsCount === 0) router.replace("/carrinho");
-  }, [hasCartHydrated, cartItemsCount, router]);
+    if (hasCartHydrated && items.length === 0) router.replace("/carrinho");
+  }, [hasCartHydrated, items.length, router]);
 
   const {
     register,
@@ -39,62 +45,49 @@ export default function IdentificationPage() {
   return (
     <div>
       <CheckoutSteps current="identificacao" />
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Quem está comprando?
-      </h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-md space-y-4">
-        <div>
-          <label htmlFor="name" className="mb-1 block text-sm font-medium">
-            Nome completo
-          </label>
-          <input
-            id="name"
-            type="text"
-            autoComplete="name"
-            {...register("name")}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
-        </div>
+      <div className="grid items-start gap-8 lg:grid-cols-[1fr_22rem]">
+        <Card className="p-6 sm:p-8">
+          <h1 className="text-2xl font-semibold tracking-tight">Quem está comprando?</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Usamos esses dados para avisar sobre o pedido e a entrega.
+          </p>
 
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium">
-            E-mail
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            {...register("email")}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
-        </div>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-5">
+            <Field id="name" label="Nome completo" error={errors.name?.message}>
+              {(props) => (
+                <Input {...props} type="text" autoComplete="name" {...register("name")} />
+              )}
+            </Field>
 
-        <div>
-          <label htmlFor="phone" className="mb-1 block text-sm font-medium">
-            Telefone
-          </label>
-          <input
-            id="phone"
-            type="tel"
-            autoComplete="tel"
-            placeholder="(11) 91234-5678"
-            {...register("phone")}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
-        </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field id="email" label="E-mail" error={errors.email?.message}>
+                {(props) => (
+                  <Input {...props} type="email" autoComplete="email" {...register("email")} />
+                )}
+              </Field>
+              <Field id="phone" label="Telefone" error={errors.phone?.message}>
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="tel"
+                    autoComplete="tel"
+                    placeholder="(11) 91234-5678"
+                    {...register("phone")}
+                  />
+                )}
+              </Field>
+            </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-300"
-        >
-          Continuar para o endereço
-        </button>
-      </form>
+            <Button type="submit" tamanho="lg" disabled={isSubmitting} className="w-full sm:w-auto">
+              Continuar para o endereço
+              <ArrowRightIcon className="h-4 w-4" />
+            </Button>
+          </form>
+        </Card>
+
+        {hasCartHydrated && <OrderSummary items={items} shippingInCents={FLAT_SHIPPING_CENTS} />}
+      </div>
     </div>
   );
 }

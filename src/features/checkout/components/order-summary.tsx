@@ -1,4 +1,5 @@
 import { ProductImage } from "@/components/product-image";
+import { Card } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/format";
 import type { CartItem } from "@/types/cart";
 
@@ -16,48 +17,45 @@ export function OrderSummary({
   const totalInCents = subtotalInCents + shippingInCents;
 
   return (
-    <div className="rounded-lg border border-zinc-200 p-5 dark:border-zinc-800">
-      <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        Resumo do pedido
-      </h2>
+    <Card className="p-5 lg:sticky lg:top-32">
+      <h2 className="mb-4 font-semibold">Resumo do pedido</h2>
 
       <ul className="space-y-3">
         {items.map((item) => (
           <li key={item.productId} className="flex items-center gap-3">
-            <div className="relative h-12 w-12 shrink-0 rounded bg-zinc-100 dark:bg-zinc-900">
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-surface-muted">
               <ProductImage
                 src={item.imageUrl}
                 alt={item.imageAlt}
                 className="object-contain p-1.5"
+                sizes="56px"
               />
+              <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold text-background tabular-nums">
+                {item.quantity}
+              </span>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                {item.name}
-              </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Qtd. {item.quantity}</p>
-            </div>
-            <p className="shrink-0 text-xs font-medium text-zinc-900 dark:text-zinc-100">
+            <p className="min-w-0 flex-1 truncate text-sm">{item.name}</p>
+            <p className="shrink-0 text-sm font-medium tabular-nums">
               {formatCurrency(item.priceInCents * item.quantity)}
             </p>
           </li>
         ))}
       </ul>
 
-      <dl className="mt-4 space-y-1.5 border-t border-zinc-200 pt-4 text-sm dark:border-zinc-800">
-        <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+      <dl className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
+        <div className="flex justify-between text-muted-foreground">
           <dt>Subtotal</dt>
-          <dd>{formatCurrency(subtotalInCents)}</dd>
+          <dd className="tabular-nums">{formatCurrency(subtotalInCents)}</dd>
         </div>
-        <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+        <div className="flex justify-between text-muted-foreground">
           <dt>Frete</dt>
-          <dd>{formatCurrency(shippingInCents)}</dd>
+          <dd className="tabular-nums">{formatCurrency(shippingInCents)}</dd>
         </div>
-        <div className="flex justify-between pt-1.5 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <div className="flex items-baseline justify-between border-t border-border pt-3 text-base font-semibold">
           <dt>Total</dt>
-          <dd>{formatCurrency(totalInCents)}</dd>
+          <dd className="text-lg tracking-tight tabular-nums">{formatCurrency(totalInCents)}</dd>
         </div>
       </dl>
-    </div>
+    </Card>
   );
 }

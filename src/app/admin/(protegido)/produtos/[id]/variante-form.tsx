@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import { AlertIcon, PlusIcon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/field";
 import { adicionarVarianteAdmin, type FormState } from "@/lib/api/admin-catalog";
 
 const ESTADO_INICIAL: FormState = {};
-const CAMPO =
-  "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900";
 
 export function VarianteForm({ produtoId }: { produtoId: string }) {
   const acaoComProduto = adicionarVarianteAdmin.bind(null, produtoId);
@@ -17,48 +18,43 @@ export function VarianteForm({ produtoId }: { produtoId: string }) {
   }, [state]);
 
   return (
-    <form ref={formRef} action={formAction} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <form ref={formRef} action={formAction} className="grid grid-cols-2 gap-3">
       <div>
-        <label htmlFor="v-nome" className="mb-1 block text-xs font-medium">
+        <Label htmlFor="v-nome" className="text-xs">
           Nome
-        </label>
-        <input id="v-nome" name="nome" required placeholder="Padrão" className={CAMPO} />
+        </Label>
+        <Input id="v-nome" name="nome" required placeholder="Padrão" />
       </div>
       <div>
-        <label htmlFor="v-sku" className="mb-1 block text-xs font-medium">
+        <Label htmlFor="v-sku" className="text-xs">
           SKU
-        </label>
-        <input id="v-sku" name="sku" required className={CAMPO} />
+        </Label>
+        <Input id="v-sku" name="sku" required className="font-mono" />
       </div>
       <div>
-        <label htmlFor="v-preco" className="mb-1 block text-xs font-medium">
+        <Label htmlFor="v-preco" className="text-xs">
           Preço (R$)
-        </label>
-        <input
-          id="v-preco"
-          name="preco"
-          required
-          inputMode="decimal"
-          placeholder="129,90"
-          className={CAMPO}
-        />
+        </Label>
+        <Input id="v-preco" name="preco" required inputMode="decimal" placeholder="129,90" />
       </div>
       <div>
-        <label htmlFor="v-estoque" className="mb-1 block text-xs font-medium">
+        <Label htmlFor="v-estoque" className="text-xs">
           Estoque
-        </label>
-        <input id="v-estoque" name="estoque" type="number" min={0} required className={CAMPO} />
+        </Label>
+        <Input id="v-estoque" name="estoque" type="number" min={0} required />
       </div>
 
-      <div className="col-span-full flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-300"
-        >
+      <div className="col-span-full flex flex-wrap items-center gap-3 pt-1">
+        <Button type="submit" disabled={isPending}>
+          <PlusIcon className="h-4 w-4" />
           {isPending ? "Adicionando..." : "Adicionar variante"}
-        </button>
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+        </Button>
+        {state.error && (
+          <p role="alert" className="flex items-center gap-1.5 text-sm text-danger">
+            <AlertIcon className="h-4 w-4 shrink-0" />
+            {state.error}
+          </p>
+        )}
       </div>
     </form>
   );

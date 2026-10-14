@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { CartIcon, CheckIcon } from "@/components/icons";
+import { Button, buttonClasses } from "@/components/ui/button";
+import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { useCartStore } from "@/features/cart/store";
 import type { Product } from "@/types/catalog";
 
@@ -8,55 +12,70 @@ export function AddToCartForm({ product }: { product: Product }) {
   const addItem = useCartStore((state) => state.addItem);
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
 
   if (!product.inStock) {
     return (
-      <button
-        type="button"
-        disabled
-        className="mt-6 w-full cursor-not-allowed rounded-full bg-zinc-200 px-6 py-3 text-sm font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
-      >
+      <Button disabled tamanho="lg" variante="outline" className="mt-8 w-full">
         Produto esgotado
-      </button>
+      </Button>
     );
   }
 
   return (
-    <div className="mt-6 flex items-center gap-3">
-      <div className="flex items-center rounded-full border border-zinc-300 dark:border-zinc-700">
-        <button
-          type="button"
-          aria-label="Diminuir quantidade"
-          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-          className="flex h-10 w-10 items-center justify-center text-lg text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-white"
+    <div className="mt-8">
+      <div className="flex flex-wrap items-center gap-3">
+        <QuantityStepper
+          value={quantity}
+          onDecrement={() => setQuantity((q) => Math.max(1, q - 1))}
+          onIncrement={() => setQuantity((q) => Math.min(99, q + 1))}
+        />
+
+        <Button
+          tamanho="lg"
+          className="min-w-[14rem] flex-1"
+          onClick={() => {
+            addItem(product, quantity);
+            setQuantity(1);
+            setJustAdded(true);
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = setTimeout(() => setJustAdded(false), 2500);
+          }}
         >
-          −
-        </button>
-        <span className="w-6 text-center text-sm font-medium" aria-live="polite">
-          {quantity}
-        </span>
-        <button
-          type="button"
-          aria-label="Aumentar quantidade"
-          onClick={() => setQuantity((q) => Math.min(99, q + 1))}
-          className="flex h-10 w-10 items-center justify-center text-lg text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-white"
-        >
-          +
-        </button>
+          {justAdded ? (
+            <>
+              <CheckIcon className="h-4 w-4" />
+              Adicionado ✓
+            </>
+          ) : (
+            <>
+              <CartIcon className="h-4 w-4" />
+              Adicionar ao carrinho
+            </>
+          )}
+        </Button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => {
-          addItem(product, quantity);
-          setQuantity(1);
-          setJustAdded(true);
-          setTimeout(() => setJustAdded(false), 2000);
-        }}
-        className="flex-1 rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-300"
-      >
-        {justAdded ? "Adicionado ✓" : "Adicionar ao carrinho"}
-      </button>
+      {justAdded && (
+        <p
+          role="status"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-success-soft px-4 py-3 text-sm text-success"
+        >
+          <span className="font-medium">Produto adicionado ao carrinho.</span>
+          <Link
+            href="/carrinho"
+            className={buttonClasses({
+              variante: "ghost",
+              tamanho: "sm",
+              className: "text-success hover:bg-success/10 hover:text-success",
+            })}
+          >
+            Ver carrinho
+          </Link>
+        </p>
+      )}
     </div>
   );
 }
