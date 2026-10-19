@@ -11,9 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # `produtos/[slug]` e `categorias/[slug]` têm generateStaticParams, que roda
-  # no `pnpm build` e chama a API própria (via BACKEND_URL) quando
-  # NEXT_PUBLIC_API_MOCKING não está "enabled" — não está setada nesta CI.
+  # O build chama a API própria (via BACKEND_URL) pra pré-renderizar o catálogo, mas não há
+  # backend nesta CI: `src/lib/api/catalog.ts` tolera a API fora do ar durante o build (sai com
+  # catálogo vazio, o ISR preenche em runtime). A variável só precisa existir e ser uma URL válida.
   BACKEND_URL: http://localhost:4000
   NEXT_TELEMETRY_DISABLED: "1"
 

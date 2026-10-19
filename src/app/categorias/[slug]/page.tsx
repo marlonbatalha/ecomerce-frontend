@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getCategories, getCategoryBySlug, getProducts } from "@/lib/api/catalog";
+import { getCategoryBySlug, getCategorySlugsForBuild, getProducts } from "@/lib/api/catalog";
 import { ProductGrid } from "@/features/catalog/components/product-grid";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/ui/card";
 
 export async function generateStaticParams() {
-  const categories = await getCategories();
-  return categories.map((category) => ({ slug: category.slug }));
+  return (await getCategorySlugsForBuild()).map((slug) => ({ slug }));
 }
 
 export async function generateMetadata(props: PageProps<"/categorias/[slug]">): Promise<Metadata> {

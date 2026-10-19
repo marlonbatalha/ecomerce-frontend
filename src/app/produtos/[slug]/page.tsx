@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getCategoryBySlug, getProductBySlug, getProducts } from "@/lib/api/catalog";
+import {
+  getCategoryBySlug,
+  getProductBySlug,
+  getProductSlugsForBuild,
+  getProducts,
+} from "@/lib/api/catalog";
 import { formatCurrency } from "@/lib/format";
 import { ProductImage } from "@/components/product-image";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -9,8 +14,7 @@ import { AddToCartForm } from "@/features/cart/components/add-to-cart-form";
 import { ProductGrid } from "@/features/catalog/components/product-grid";
 
 export async function generateStaticParams() {
-  const { items: products } = await getProducts({ pageSize: 100 });
-  return products.map((product) => ({ slug: product.slug }));
+  return (await getProductSlugsForBuild()).map((slug) => ({ slug }));
 }
 
 export async function generateMetadata(props: PageProps<"/produtos/[slug]">): Promise<Metadata> {

@@ -62,6 +62,28 @@ type ResultadoPaginadoApi<T> = {
   totalItens: number;
 };
 
+/**
+ * Build (`next build`) não pode depender do backend estar no ar: são dois repositórios com deploy
+ * independente, e o pre-commit/CI do frontend roda sem API nenhuma por perto. Se a API estiver
+ * inalcançável (erro de rede — `fetch` rejeita com TypeError) durante o build, a listagem sai com
+ * `fallback` e o ISR busca o dado real na primeira revalidação, já em runtime.
+ *
+ * Só no build, e só erro de rede: em runtime o erro continua subindo (o ISR mantém a última página
+ * boa em vez de cachear uma vazia), e resposta de erro da API (`ApiError`) ou BACKEND_URL faltando
+ * continuam quebrando o build — isso é bug/configuração errada, não API fora do ar.
+ */
+async function tolerarApiForaDoArNoBuild<T>(busca: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await busca;
+  } catch (err) {
+    if (process.env.NEXT_PHASE === "phase-production-build" && err instanceof TypeError) {
+      console.warn("[catalogo] API inalcançável durante o build — seguindo com dados vazios.");
+      return fallback;
+    }
+    throw err;
+  }
+}
+
 function achatarCategorias(categorias: CategoriaApi[]): CategoriaApi[] {
   return categorias.flatMap((c) => [c, ...achatarCategorias(c.subcategorias)]);
 }
@@ -76,17 +98,22 @@ function mapCategory(categoria: CategoriaApi): Category {
   };
 }
 
+function buscarArvoreDeCategorias(): Promise<CategoriaApi[]> {
+  return tolerarApiForaDoArNoBuild(
+    apiFetch<CategoriaApi[]>("/categorias", {
+      next: { revalidate: REVALIDATE_SECONDS.categories },
+    }),
+    [],
+  );
+}
+
 /** Categoria não tem navegação pra slug no `ProdutoResumoApi`/`ProdutoApi` (só `categoriaId`) —
  * busca a árvore uma vez e monta os dois mapas (id->slug pro output, slug->id pro filtro). */
 async function buscarMapasDeCategoria(): Promise<{
   porId: Map<string, string>;
   porSlug: Map<string, string>;
 }> {
-  const categorias = achatarCategorias(
-    await apiFetch<CategoriaApi[]>("/categorias", {
-      next: { revalidate: REVALIDATE_SECONDS.categories },
-    }),
-  );
+  const categorias = achatarCategorias(await buscarArvoreDeCategorias());
 
   return {
     porId: new Map(categorias.map((c) => [c.id, c.slug])),
@@ -100,11 +127,7 @@ function paraCentavos(preco: number): number {
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const categorias = await apiFetch<CategoriaApi[]>("/categorias", {
-    next: { revalidate: REVALIDATE_SECONDS.categories },
-  });
-
-  return achatarCategorias(categorias).map(mapCategory);
+  return achatarCategorias(await buscarArvoreDeCategorias()).map(mapCategory);
 }
 
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
@@ -127,15 +150,18 @@ export async function getProducts(params: ProductListParams = {}): Promise<Produ
     return { items: [], page: params.page ?? 1, pageSize: params.pageSize ?? 20, total: 0 };
   }
 
-  const resultado = await apiFetch<ResultadoPaginadoApi<ProdutoResumoApi>>("/produtos", {
-    searchParams: {
-      categoriaId,
-      termo: params.q,
-      pagina: params.page,
-      tamanhoPagina: params.pageSize,
-    },
-    next: params.q ? { revalidate: 0 } : { revalidate: REVALIDATE_SECONDS.product },
-  });
+  const resultado = await tolerarApiForaDoArNoBuild(
+    apiFetch<ResultadoPaginadoApi<ProdutoResumoApi>>("/produtos", {
+      searchParams: {
+        categoriaId,
+        termo: params.q,
+        pagina: params.page,
+        tamanhoPagina: params.pageSize,
+      },
+      next: params.q ? { revalidate: 0 } : { revalidate: REVALIDATE_SECONDS.product },
+    }),
+    { itens: [], pagina: params.page ?? 1, tamanhoPagina: params.pageSize ?? 20, totalItens: 0 },
+  );
 
   const items: ProductListItem[] = resultado.itens.map((p) => ({
     id: p.id,
@@ -181,4 +207,33 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     imageAlt: produto.nome,
     inStock: produto.variantes.some((v) => v.ativo && v.estoque > 0),
   };
+}
+
+/**
+ * Slugs pra `generateStaticParams` das páginas de detalhe. `no-store` de propósito: o cache de
+ * fetch do Next (`.next/cache`) sobrevive entre builds, então com a API fora do ar uma lista
+ * cacheada mandaria pré-renderizar páginas cujo detalhe não dá pra buscar — e aí não há fallback
+ * honesto (seria gravar um 404 pra um produto que existe). Perguntando ao vivo, API fora do ar =
+ * nenhuma página de detalhe no build; cada uma é gerada no primeiro acesso, em runtime.
+ */
+export async function getCategorySlugsForBuild(): Promise<string[]> {
+  const categorias = await tolerarApiForaDoArNoBuild(
+    apiFetch<CategoriaApi[]>("/categorias", { cache: "no-store" }),
+    [],
+  );
+
+  return achatarCategorias(categorias).map((c) => c.slug);
+}
+
+/** Ver `getCategorySlugsForBuild` — só os 100 primeiros produtos; o resto é gerado sob demanda. */
+export async function getProductSlugsForBuild(): Promise<string[]> {
+  const resultado = await tolerarApiForaDoArNoBuild(
+    apiFetch<ResultadoPaginadoApi<ProdutoResumoApi>>("/produtos", {
+      searchParams: { tamanhoPagina: 100 },
+      cache: "no-store",
+    }),
+    { itens: [], pagina: 1, tamanhoPagina: 100, totalItens: 0 },
+  );
+
+  return resultado.itens.map((p) => p.slug);
 }
