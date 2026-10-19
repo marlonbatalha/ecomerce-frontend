@@ -2,13 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GridIcon, PackageIcon, TagIcon } from "@/components/icons";
+import {
+  CartIcon,
+  GridIcon,
+  PackageIcon,
+  PercentIcon,
+  TagIcon,
+  UserIcon,
+} from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 const ITENS = [
   { href: "/admin", rotulo: "Painel", Icone: GridIcon },
-  { href: "/admin/categorias", rotulo: "Categorias", Icone: TagIcon },
+  { href: "/admin/pedidos", rotulo: "Pedidos", Icone: CartIcon },
   { href: "/admin/produtos", rotulo: "Produtos", Icone: PackageIcon },
+  { href: "/admin/categorias", rotulo: "Categorias", Icone: TagIcon },
+  { href: "/admin/cupons", rotulo: "Cupons", Icone: PercentIcon },
+  { href: "/admin/clientes", rotulo: "Clientes", Icone: UserIcon },
 ];
 
 export function AdminNav() {

@@ -248,6 +248,95 @@ export type ProdutoAdminDetalhe = {
   imagens: { id: string; url: string; ordem: number }[];
 };
 
+/**
+ * Ajuste manual de estoque (inventário, avaria, devolução...). O motivo é obrigatório: a API
+ * grava quem, quando, de quanto pra quanto e por quê (`AjusteDeEstoque`, auditoria).
+ */
+export async function ajustarEstoqueAdmin(
+  produtoId: string,
+  varianteId: string,
+  _estadoAnterior: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const token = await exigirTokenAdmin();
+  const novoEstoque = Number(formData.get("novoEstoque") ?? "");
+  const motivo = String(formData.get("motivo") ?? "").trim();
+
+  if (!Number.isInteger(novoEstoque) || novoEstoque < 0) {
+    return { error: "O estoque precisa ser um número inteiro, zero ou maior." };
+  }
+  if (!motivo) return { error: "Informe o motivo do ajuste." };
+
+  const res = await fetch(apiUrl(`/produtos/${produtoId}/variantes/${varianteId}/estoque`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ novoEstoque, motivo }),
+  });
+
+  if (res.status === 401) redirect("/admin/login");
+  if (!res.ok) return { error: await extrairErro(res) };
+
+  revalidatePath(`/admin/produtos/${produtoId}`);
+  revalidatePath("/produtos");
+  return { success: true };
+}
+
+export type AjusteDeEstoqueAdmin = {
+  id: string;
+  estoqueAnterior: number;
+  estoqueNovo: number;
+  motivo: string;
+  criadoEmUtc: string;
+};
+
+export async function historicoEstoqueAdmin(
+  produtoId: string,
+  varianteId: string,
+): Promise<AjusteDeEstoqueAdmin[]> {
+  const token = await exigirTokenAdmin();
+
+  const res = await fetch(
+    apiUrl(`/produtos/${produtoId}/variantes/${varianteId}/historico-estoque`),
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+  );
+
+  if (res.status === 401) redirect("/admin/login");
+  if (!res.ok) throw new Error(`Falha ao buscar o histórico de estoque (${res.status}).`);
+
+  return (await res.json()) as AjusteDeEstoqueAdmin[];
+}
+
+/**
+ * Ativa/inativa produto ou variante. A API recusa inativar a última variante ativa de um produto
+ * ativo — o erro volta pro admin em vez de sumir.
+ */
+export async function alternarAtivoAdmin(
+  produtoId: string,
+  varianteId: string | null,
+  ativar: boolean,
+): Promise<FormState> {
+  const token = await exigirTokenAdmin();
+  const alvo = varianteId
+    ? `/produtos/${produtoId}/variantes/${varianteId}`
+    : `/produtos/${produtoId}`;
+
+  const res = await fetch(apiUrl(`${alvo}/${ativar ? "ativar" : "inativar"}`), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (res.status === 401) redirect("/admin/login");
+  if (!res.ok) return { error: await extrairErro(res) };
+
+  revalidatePath(`/admin/produtos/${produtoId}`);
+  revalidatePath("/admin/produtos");
+  revalidatePath("/produtos");
+  return { success: true };
+}
+
 /** `GET /api/v1/produtos/{id}` é público (não filtra por ativo) — não precisa de token aqui. */
 export async function obterProdutoAdmin(id: string): Promise<ProdutoAdminDetalhe | null> {
   const res = await fetch(apiUrl(`/produtos/${id}`), { cache: "no-store" });

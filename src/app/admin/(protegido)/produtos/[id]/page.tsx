@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import {
@@ -15,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { moverImagemAdmin, obterProdutoAdmin, removerImagemAdmin } from "@/lib/api/admin-catalog";
 import { getCategories } from "@/lib/api/catalog";
 import { formatCurrency } from "@/lib/format";
+import { BotaoAtivo } from "./botao-ativo";
 import { VarianteForm } from "./variante-form";
 import { ImagemForm } from "./imagem-form";
 
@@ -52,6 +54,9 @@ export default async function AdminProdutoDetalhePage({
           SKU <span className="font-mono">{produto.sku}</span> ·{" "}
           {categoria?.name ?? "sem categoria"} · {formatCurrency(Math.round(produto.preco * 100))}
         </p>
+        <div className="mt-4">
+          <BotaoAtivo produtoId={produto.id} ativo={produto.ativo} rotulo="produto" />
+        </div>
         {disponivel ? (
           <p className="mt-4 inline-flex items-center gap-2 rounded-xl bg-success-soft px-3 py-2 text-sm text-success">
             <CheckCircleIcon className="h-4 w-4" />
@@ -82,6 +87,9 @@ export default async function AdminProdutoDetalhePage({
                     <th className="px-4 py-2.5 text-right font-medium">Preço</th>
                     <th className="px-4 py-2.5 text-right font-medium">Estoque</th>
                     <th className="px-4 py-2.5 font-medium">Status</th>
+                    <th className="px-4 py-2.5">
+                      <span className="sr-only">Ações</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -103,6 +111,15 @@ export default async function AdminProdutoDetalhePage({
                         <Badge tom={variante.ativo ? "success" : "neutral"}>
                           {variante.ativo ? "Ativa" : "Inativa"}
                         </Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <Link
+                          href={`/admin/produtos/${produto.id}/variantes/${variante.id}`}
+                          aria-label={`Gerenciar estoque de ${variante.nome}`}
+                          className="text-sm font-medium whitespace-nowrap text-accent hover:text-accent-hover"
+                        >
+                          Estoque
+                        </Link>
                       </td>
                     </tr>
                   ))}

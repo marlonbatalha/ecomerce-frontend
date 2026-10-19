@@ -34,6 +34,7 @@ export type StatusPedido =
 
 export type PedidoResumo = {
   id: string;
+  usuarioId: string;
   status: StatusPedido;
   criadoEm: Date;
   totalInCents: number;
@@ -50,6 +51,7 @@ export type ItemDoPedido = {
 
 export type Pedido = {
   id: string;
+  usuarioId: string;
   status: StatusPedido;
   criadoEm: Date;
   codigoRastreio?: string;

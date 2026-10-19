@@ -1,27 +1,89 @@
 import Link from "next/link";
-import { ChevronRightIcon, PackageIcon, TagIcon } from "@/components/icons";
+import {
+  CartIcon,
+  ChevronRightIcon,
+  PackageIcon,
+  PercentIcon,
+  TagIcon,
+  UserIcon,
+} from "@/components/icons";
 import { PageHeader } from "@/components/ui/card";
+import { contarPedidosAdmin } from "@/lib/api/admin-vendas";
+import { cn } from "@/lib/cn";
 
 const ATALHOS = [
   {
-    href: "/admin/categorias",
-    titulo: "Categorias",
-    texto: "Criar e ver categorias do catálogo.",
-    Icone: TagIcon,
+    href: "/admin/pedidos",
+    titulo: "Pedidos",
+    texto: "Enviar, acompanhar e entregar.",
+    Icone: CartIcon,
   },
   {
     href: "/admin/produtos",
     titulo: "Produtos",
-    texto: "Cadastrar produto, variantes, estoque e imagens.",
+    texto: "Cadastro, variantes, estoque e imagens.",
     Icone: PackageIcon,
+  },
+  {
+    href: "/admin/categorias",
+    titulo: "Categorias",
+    texto: "Organização do catálogo.",
+    Icone: TagIcon,
+  },
+  { href: "/admin/cupons", titulo: "Cupons", texto: "Descontos do checkout.", Icone: PercentIcon },
+  {
+    href: "/admin/clientes",
+    titulo: "Clientes",
+    texto: "Busca por nome ou e-mail.",
+    Icone: UserIcon,
   },
 ];
 
-export default function AdminPainelPage() {
+export default async function AdminPainelPage() {
+  const [aEnviar, aguardandoPagamento] = await Promise.all([
+    contarPedidosAdmin("PagamentoConfirmado"),
+    contarPedidosAdmin("Pendente"),
+  ]);
+
+  const indicadores = [
+    {
+      href: "/admin/pedidos?status=PagamentoConfirmado",
+      valor: aEnviar,
+      rotulo: aEnviar === 1 ? "pedido pago aguardando envio" : "pedidos pagos aguardando envio",
+      destaque: aEnviar > 0,
+    },
+    {
+      href: "/admin/pedidos?status=Pendente",
+      valor: aguardandoPagamento,
+      rotulo:
+        aguardandoPagamento === 1 ? "pedido aguardando pagamento" : "pedidos aguardando pagamento",
+      destaque: false,
+    },
+  ];
+
   return (
     <div>
-      <PageHeader title="Painel admin" description="Gerencie o catálogo da loja." />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <PageHeader title="Painel admin" description="Visão geral da loja." />
+
+      <div className="mb-8 grid gap-4 sm:grid-cols-2">
+        {indicadores.map((indicador) => (
+          <Link
+            key={indicador.href}
+            href={indicador.href}
+            className={cn(
+              "rounded-2xl border p-6 shadow-card transition-[border-color,box-shadow] hover:shadow-elevated",
+              indicador.destaque
+                ? "border-accent/40 bg-accent-soft"
+                : "border-border bg-surface hover:border-border-strong",
+            )}
+          >
+            <p className="text-3xl font-semibold tracking-tight tabular-nums">{indicador.valor}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{indicador.rotulo}</p>
+          </Link>
+        ))}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {ATALHOS.map(({ href, titulo, texto, Icone }) => (
           <Link
             key={href}
