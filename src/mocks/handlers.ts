@@ -1,19 +1,14 @@
 import { http, HttpResponse } from "msw";
-import { catalogHandlers } from "@/mocks/handlers/catalog";
-import { ordersHandlers } from "@/mocks/handlers/orders";
 
 /**
- * Handlers compartilhados entre o mock de browser (dev sem backend pronto —
- * src/mocks/init.ts) e os testes (Vitest). Cada domínio (catálogo, carrinho,
- * conta...) exporta seus próprios handlers em `handlers/<domínio>.ts` e os
- * agrega aqui. Páginas/Server Components não passam por aqui: leem direto de
- * `src/mocks/data` via `src/lib/api/*` quando o mock está ligado — ver
- * comentário em `src/mocks/data/catalog-queries.ts`.
+ * Handlers do MSW usados só nos testes unitários (Vitest, ver `tests/unit/setup.ts`), que
+ * bloqueia qualquer requisição de rede não mapeada aqui. O app não tem mais mock de API: catálogo,
+ * conta, carrinho e checkout falam com a API própria de verdade (dados de exemplo no banco:
+ * `sql/seed-produtos-exemplo.sql` no ecomerce-backend). Teste que precise de uma resposta da API
+ * registra o próprio handler com `server.use(...)`.
  */
 export const handlers = [
   http.get("*/health", () => {
     return HttpResponse.json({ status: "ok" });
   }),
-  ...catalogHandlers,
-  ...ordersHandlers,
 ];

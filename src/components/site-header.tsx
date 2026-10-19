@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BagIcon, SearchIcon } from "@/components/icons";
 import { CartBadge } from "@/features/cart/components/cart-badge";
+import { ContaNoCabecalho } from "@/features/conta/components/conta-no-cabecalho";
 import { ThemeToggle } from "@/features/theme/theme-toggle";
 import type { Category } from "@/types/catalog";
 
@@ -31,6 +32,7 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
 
         <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
+          <ContaNoCabecalho />
           <CartBadge />
         </div>
       </div>

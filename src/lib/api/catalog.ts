@@ -1,10 +1,11 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, cabecalhosDoVisitante } from "@/lib/api/client";
 import type {
   Category,
   Product,
   ProductListItem,
   ProductListParams,
   ProductListResult,
+  ProductSort,
 } from "@/types/catalog";
 
 // Tempos de revalidação (ISR) por tipo de dado — seção 3 do plano: páginas
@@ -14,6 +15,9 @@ const REVALIDATE_SECONDS = {
   categories: 3600,
   product: 300,
 } as const;
+
+const TAMANHO_MINIMO_TERMO = 2;
+const TAMANHO_MAXIMO_TERMO = 100;
 
 /** Placeholder local — não há storage/CDN real de imagem ainda (seção 1.4 do plano). */
 const PLACEHOLDER_IMAGE = "/images/product-placeholder.svg";
@@ -42,7 +46,14 @@ type ProdutoResumoApi = {
   imagemPrincipalUrl: string | null;
 };
 
-type VarianteApi = { estoque: number; ativo: boolean };
+type VarianteApi = {
+  id: string;
+  nome: string;
+  sku: string;
+  preco: number;
+  estoque: number;
+  ativo: boolean;
+};
 
 type ProdutoApi = {
   id: string;
@@ -52,7 +63,15 @@ type ProdutoApi = {
   preco: number;
   categoriaId: string;
   variantes: VarianteApi[];
+  /** Já vem na ordem definida no admin (`Ordem`). */
   imagens: { url: string }[];
+};
+
+/** Nomes do enum `OrdenacaoProduto` do backend (o model binding aceita o nome). */
+const ORDENACAO_API: Record<ProductSort, string> = {
+  recentes: "MaisRecente",
+  "menor-preco": "PrecoAsc",
+  "maior-preco": "PrecoDesc",
 };
 
 type ResultadoPaginadoApi<T> = {
@@ -126,6 +145,41 @@ function paraCentavos(preco: number): number {
   return Math.round(preco * 100);
 }
 
+function paraReais(centavos: number | undefined): string | undefined {
+  return centavos === undefined ? undefined : (centavos / 100).toFixed(2);
+}
+
+/** Tamanhos de roupa na ordem em que a loja mostra (ordem alfabética daria G, GG, M, P...). */
+const ORDEM_DE_TAMANHOS = ["PP", "P", "M", "G", "GG", "XG", "XGG", "EXG"];
+
+/**
+ * A API não guarda ordem de variante (nem devolve ordenado). Tamanhos de roupa conhecidos vêm
+ * primeiro, na ordem certa; o resto em ordem natural ("38" antes de "40", "Azul" antes de "Preta").
+ */
+function compararVariantes(a: { nome: string }, b: { nome: string }): number {
+  const tamanhoA = ORDEM_DE_TAMANHOS.indexOf(a.nome.trim().toUpperCase());
+  const tamanhoB = ORDEM_DE_TAMANHOS.indexOf(b.nome.trim().toUpperCase());
+
+  if (tamanhoA !== -1 && tamanhoB !== -1) return tamanhoA - tamanhoB;
+  if (tamanhoA !== -1) return -1;
+  if (tamanhoB !== -1) return 1;
+  return a.nome.localeCompare(b.nome, "pt-BR", { numeric: true, sensitivity: "base" });
+}
+
+function totalDePaginas(totalItens: number, tamanhoPagina: number): number {
+  return tamanhoPagina > 0 ? Math.ceil(totalItens / tamanhoPagina) : 0;
+}
+
+function resultadoVazio(params: ProductListParams): ProductListResult {
+  return {
+    items: [],
+    page: params.page ?? 1,
+    pageSize: params.pageSize ?? 20,
+    total: 0,
+    totalPages: 0,
+  };
+}
+
 export async function getCategories(): Promise<Category[]> {
   return achatarCategorias(await buscarArvoreDeCategorias()).map(mapCategory);
 }
@@ -146,19 +200,30 @@ export async function getProducts(params: ProductListParams = {}): Promise<Produ
   const categoriaId = params.category ? porSlug.get(params.category) : undefined;
 
   // Filtro por categoria com slug que não existe — resultado vazio, sem nem chamar a API.
-  if (params.category && !categoriaId) {
-    return { items: [], page: params.page ?? 1, pageSize: params.pageSize ?? 20, total: 0 };
+  // A API recusa (400) termo fora de 2–100 caracteres (BuscarProdutosRequisicaoValidador no
+  // backend): 1 letra não é uma busca útil, vira resultado vazio sem chamar a API.
+  const termo = params.q?.trim().slice(0, TAMANHO_MAXIMO_TERMO) || undefined;
+
+  if ((params.category && !categoriaId) || (termo && termo.length < TAMANHO_MINIMO_TERMO)) {
+    return resultadoVazio(params);
   }
 
   const resultado = await tolerarApiForaDoArNoBuild(
     apiFetch<ResultadoPaginadoApi<ProdutoResumoApi>>("/produtos", {
       searchParams: {
         categoriaId,
-        termo: params.q,
+        termo,
+        ordenacao: params.sort ? ORDENACAO_API[params.sort] : undefined,
+        precoMinimo: paraReais(params.minPriceInCents),
+        precoMaximo: paraReais(params.maxPriceInCents),
         pagina: params.page,
         tamanhoPagina: params.pageSize,
       },
-      next: params.q ? { revalidate: 0 } : { revalidate: REVALIDATE_SECONDS.product },
+      // Busca com termo não é cacheada e a API limita por visitante — manda o IP dele. Sem termo
+      // o resultado é cacheado (ISR) e compartilhado, então vai sem IP (ver cabecalhosDoVisitante).
+      ...(termo
+        ? { next: { revalidate: 0 }, headers: await cabecalhosDoVisitante() }
+        : { next: { revalidate: REVALIDATE_SECONDS.product } }),
     }),
     { itens: [], pagina: params.page ?? 1, tamanhoPagina: params.pageSize ?? 20, totalItens: 0 },
   );
@@ -181,6 +246,7 @@ export async function getProducts(params: ProductListParams = {}): Promise<Produ
     page: resultado.pagina,
     pageSize: resultado.tamanhoPagina,
     total: resultado.totalItens,
+    totalPages: totalDePaginas(resultado.totalItens, resultado.tamanhoPagina),
   };
 }
 
@@ -195,6 +261,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   if (!produto) return null;
 
   const { porId } = await buscarMapasDeCategoria();
+  const variantesAtivas = produto.variantes.filter((v) => v.ativo).sort(compararVariantes);
 
   return {
     id: produto.id,
@@ -205,27 +272,29 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     categorySlug: porId.get(produto.categoriaId) ?? "",
     imageUrl: produto.imagens[0]?.url ?? PLACEHOLDER_IMAGE,
     imageAlt: produto.nome,
-    inStock: produto.variantes.some((v) => v.ativo && v.estoque > 0),
+    inStock: variantesAtivas.some((v) => v.estoque > 0),
+    variants: variantesAtivas.map((v) => ({
+      id: v.id,
+      name: v.nome,
+      sku: v.sku,
+      priceInCents: paraCentavos(v.preco),
+      stock: v.estoque,
+    })),
+    images: produto.imagens.map((imagem, indice) => ({
+      url: imagem.url,
+      alt: indice === 0 ? produto.nome : `${produto.nome} — foto ${indice + 1}`,
+    })),
   };
 }
 
 /**
- * Slugs pra `generateStaticParams` das páginas de detalhe. `no-store` de propósito: o cache de
- * fetch do Next (`.next/cache`) sobrevive entre builds, então com a API fora do ar uma lista
- * cacheada mandaria pré-renderizar páginas cujo detalhe não dá pra buscar — e aí não há fallback
- * honesto (seria gravar um 404 pra um produto que existe). Perguntando ao vivo, API fora do ar =
- * nenhuma página de detalhe no build; cada uma é gerada no primeiro acesso, em runtime.
+ * Slugs pra `generateStaticParams` das páginas de detalhe — só os 100 primeiros produtos; o resto
+ * é gerado sob demanda. `no-store` de propósito: o cache de fetch do Next (`.next/cache`)
+ * sobrevive entre builds, então com a API fora do ar uma lista cacheada mandaria pré-renderizar
+ * páginas cujo detalhe não dá pra buscar — e aí não há fallback honesto (seria gravar um 404 pra
+ * um produto que existe). Perguntando ao vivo, API fora do ar = nenhuma página de detalhe no
+ * build; cada uma é gerada no primeiro acesso, em runtime.
  */
-export async function getCategorySlugsForBuild(): Promise<string[]> {
-  const categorias = await tolerarApiForaDoArNoBuild(
-    apiFetch<CategoriaApi[]>("/categorias", { cache: "no-store" }),
-    [],
-  );
-
-  return achatarCategorias(categorias).map((c) => c.slug);
-}
-
-/** Ver `getCategorySlugsForBuild` — só os 100 primeiros produtos; o resto é gerado sob demanda. */
 export async function getProductSlugsForBuild(): Promise<string[]> {
   const resultado = await tolerarApiForaDoArNoBuild(
     apiFetch<ResultadoPaginadoApi<ProdutoResumoApi>>("/produtos", {

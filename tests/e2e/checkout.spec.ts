@@ -1,112 +1,115 @@
 import { expect, test, type Page } from "@playwright/test";
 
-test.beforeEach(async ({ page }) => {
-  // Carrinho fica em localStorage — cada teste começa do zero.
-  await page.goto("/");
-  await page.evaluate(() => window.localStorage.clear());
-});
-
 /**
- * Clica em "Adicionar ao carrinho" e espera a escrita no carrinho
- * (persistido) realmente acontecer, checando o badge no header — mais
- * confiável que esperar o texto "Adicionado ✓", que é transiente (some
- * depois de 2s) e pode flakar sob carga com vários testes em paralelo.
+ * Carrinho e checkout ponta a ponta contra a API própria (BACKEND_URL). Em dev a API usa o gateway
+ * fake (`Pagamentos:Provedor=Fake`): sem URL do Mercado Pago, o checkout vai direto pra confirmação.
+ * Cada teste usa uma conta nova, então rodam em paralelo sem dividir carrinho.
  */
-async function addToCart(page: Page) {
-  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
-  await expect(page.getByRole("link", { name: /carrinho, 1 item/i })).toBeVisible();
+
+const SENHA = "SenhaForte123!";
+// Produto do seed (sql/seed-produtos-exemplo.sql no backend), variante única com estoque.
+const PRODUTO = "/produtos/garrafa-termica-1-litro";
+
+async function cadastrar(page: Page) {
+  const email = `e2e-checkout-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@exemplo.com`;
+  await page.goto("/cadastro");
+  await page.getByLabel("Nome completo").fill("Cliente Checkout");
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Senha", { exact: true }).fill(SENHA);
+  await page.getByLabel("Confirme a senha").fill(SENHA);
+  await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(page).toHaveURL(/\/conta$/);
+  return email;
 }
 
-test("adiciona um produto ao carrinho a partir da página do produto", async ({ page }) => {
-  await page.goto("/produtos/fone-de-ouvido-bluetooth");
-  await addToCart(page);
+async function adicionarAoCarrinho(page: Page, url = PRODUTO) {
+  await page.goto(url);
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByText("Produto adicionado ao carrinho.")).toBeVisible();
+}
 
-  await page.getByRole("link", { name: /^carrinho/i }).click();
+async function preencherEndereco(page: Page) {
+  await page.getByLabel("Nome do endereço").fill("Casa");
+  await page.getByLabel("CEP").fill("01310-100");
+  await page.getByLabel("Rua / avenida").fill("Av. Paulista");
+  await page.getByLabel("Número").fill("1000");
+  await page.getByLabel("Bairro").fill("Bela Vista");
+  await page.getByLabel("Cidade").fill("São Paulo");
+  await page.getByLabel("Estado").selectOption("SP");
+}
+
+test("carrinho de visitante: adiciona, mostra no ícone, altera e remove", async ({ page }) => {
+  await adicionarAoCarrinho(page);
+  await expect(page.getByRole("link", { name: "Carrinho, 1 item" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Carrinho, 1 item" }).click();
   await expect(page).toHaveURL(/\/carrinho$/);
-  await expect(page.getByText("Fone de Ouvido Bluetooth")).toBeVisible();
-});
+  await expect(page.getByRole("link", { name: "Garrafa Térmica 1 Litro" }).first()).toBeVisible();
 
-test("não deixa adicionar um produto esgotado", async ({ page }) => {
-  await page.goto("/produtos/carregador-portatil-20000mah");
-  await expect(page.getByRole("button", { name: "Produto esgotado" })).toBeDisabled();
-});
+  await page.getByRole("button", { name: /Aumentar quantidade/ }).click();
+  await expect(page.getByRole("link", { name: "Carrinho, 2 itens" })).toBeVisible();
 
-test("carrinho vazio mostra estado vazio e link para produtos", async ({ page }) => {
-  await page.goto("/carrinho");
+  await page.getByRole("button", { name: /Remover Garrafa/ }).click();
   await expect(page.getByText("Seu carrinho está vazio")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Carrinho", exact: true })).toBeVisible();
 });
 
-test("completa o fluxo de checkout até a confirmação (Pix)", async ({ page }) => {
-  await page.goto("/produtos/fone-de-ouvido-bluetooth");
-  await addToCart(page);
+test("não deixa adicionar uma opção esgotada", async ({ page }) => {
+  // Tamanho 42 do tênis tem estoque 0 no seed.
+  await page.goto("/produtos/tenis-casual-urbano");
+  await page.getByRole("button", { name: "42 (esgotado)" }).click();
 
+  await expect(page.getByRole("button", { name: "Opção esgotada" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Adicionar ao carrinho" })).toHaveCount(0);
+});
+
+test("checkout exige login e o carrinho do visitante vai junto pra conta", async ({ page }) => {
+  await adicionarAoCarrinho(page);
   await page.goto("/carrinho");
   await page.getByRole("link", { name: "Ir para o checkout" }).click();
+  await expect(page).toHaveURL(/\/entrar\?redirecionar=%2Fcheckout/);
 
-  // Identificação
-  await expect(page).toHaveURL(/\/checkout\/identificacao$/);
-  await page.getByLabel("Nome completo").fill("Maria Silva");
-  await page.getByLabel("E-mail").fill("maria@example.com");
-  await page.getByLabel("Telefone").fill("11912345678");
-  await page.getByRole("button", { name: "Continuar para o endereço" }).click();
+  await page.getByRole("link", { name: "Criar conta" }).click();
+  const email = `e2e-mescla-${Date.now()}@exemplo.com`;
+  await page.getByLabel("Nome completo").fill("Cliente Mescla");
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Senha", { exact: true }).fill(SENHA);
+  await page.getByLabel("Confirme a senha").fill(SENHA);
+  await page.getByRole("button", { name: "Criar conta" }).click();
 
-  // Endereço
-  await expect(page).toHaveURL(/\/checkout\/endereco$/);
-  await page.getByLabel("CEP").fill("01310-100");
-  await page.getByLabel("Rua").fill("Av. Paulista");
-  await page.getByLabel("Número").fill("1000");
-  await page.getByLabel("Bairro").fill("Bela Vista");
-  await page.getByLabel("Cidade").fill("São Paulo");
-  await page.getByLabel("UF").fill("SP");
-  await page.getByRole("button", { name: "Continuar para o pagamento" }).click();
-
-  // Pagamento (Pix é o método padrão)
-  await expect(page).toHaveURL(/\/checkout\/pagamento$/);
-  await page.getByRole("button", { name: "Finalizar pedido" }).click();
-
-  // Confirmação
-  await expect(page).toHaveURL(/\/checkout\/confirmacao$/, { timeout: 10_000 });
-  await expect(page.getByRole("heading", { name: "Pedido confirmado!" })).toBeVisible();
-  await expect(page.getByText(/pagamento via Pix/i)).toBeVisible();
-
-  // Carrinho foi esvaziado após o pedido
-  await page.goto("/carrinho");
-  await expect(page.getByText("Seu carrinho está vazio")).toBeVisible();
+  await expect(page).toHaveURL(/\/checkout$/);
+  await expect(page.getByText("Garrafa Térmica 1 Litro")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Carrinho, 1 item" })).toBeVisible();
 });
 
-test("valida os campos do cartão quando esse é o método escolhido", async ({ page }) => {
-  await page.goto("/produtos/fone-de-ouvido-bluetooth");
-  await addToCart(page);
+test("compra completa: endereço novo, frete, cupom inválido e confirmação", async ({ page }) => {
+  await cadastrar(page);
+  await adicionarAoCarrinho(page);
+  await page.goto("/checkout");
 
-  await page.goto("/carrinho");
-  await page.getByRole("link", { name: "Ir para o checkout" }).click();
+  // Sem endereço salvo, o checkout já abre o cadastro.
+  await preencherEndereco(page);
+  await page.getByRole("button", { name: "Cadastrar endereço" }).click();
+  await expect(page.getByRole("list", { name: "Endereços salvos" })).toContainText("Av. Paulista");
 
-  await page.getByLabel("Nome completo").fill("Maria Silva");
-  await page.getByLabel("E-mail").fill("maria@example.com");
-  await page.getByLabel("Telefone").fill("11912345678");
-  await page.getByRole("button", { name: "Continuar para o endereço" }).click();
+  // Frete: troca pra SEDEX e o total acompanha (R$ 79,90 + R$ 34,90).
+  await page.getByLabel(/SEDEX/).check();
+  await expect(page.getByText("R$ 114,80")).toBeVisible();
 
-  await page.getByLabel("CEP").fill("01310-100");
-  await page.getByLabel("Rua").fill("Av. Paulista");
-  await page.getByLabel("Número").fill("1000");
-  await page.getByLabel("Bairro").fill("Bela Vista");
-  await page.getByLabel("Cidade").fill("São Paulo");
-  await page.getByLabel("UF").fill("SP");
-  await page.getByRole("button", { name: "Continuar para o pagamento" }).click();
+  await page.getByLabel("Cupom de desconto").fill("NAO-EXISTE");
+  await page.getByRole("button", { name: "Aplicar" }).click();
+  await expect(page.getByText("Cupom não encontrado.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Cartão de crédito" }).click();
-  await page.getByRole("button", { name: "Finalizar pedido" }).click();
+  await page.getByRole("button", { name: "Ir para o pagamento" }).click();
 
-  // Sem preencher o cartão, permanece na mesma página com erros de validação
-  await expect(page).toHaveURL(/\/checkout\/pagamento$/);
-  await expect(page.getByText("Número de cartão inválido")).toBeVisible();
+  await expect(page).toHaveURL(/\/checkout\/confirmacao\?pedido=/);
+  await expect(page.getByRole("heading", { name: "Pedido recebido!" })).toBeVisible();
+  await expect(page.getByText("Entrega via SEDEX")).toBeVisible();
+  await expect(page.getByText("R$ 114,80")).toBeVisible();
+  // O carrinho foi esvaziado no checkout.
+  await expect(page.getByRole("link", { name: "Carrinho", exact: true })).toBeVisible();
 
-  await page.getByLabel("Número do cartão").fill("4111 1111 1111 1111");
-  await page.getByLabel("Nome impresso no cartão").fill("MARIA SILVA");
-  await page.getByLabel("Validade (MM/AA)").fill("12/29");
-  await page.getByLabel("CVV").fill("123");
-  await page.getByRole("button", { name: "Finalizar pedido" }).click();
-
-  await expect(page).toHaveURL(/\/checkout\/confirmacao$/, { timeout: 10_000 });
-  await expect(page.getByText(/pagamento via Cartão de crédito/i)).toBeVisible();
+  await page.getByRole("link", { name: "Ver pedido" }).click();
+  await expect(page).toHaveURL(/\/conta\/pedidos\//);
+  await expect(page.getByText("Aguardando pagamento")).toBeVisible();
 });

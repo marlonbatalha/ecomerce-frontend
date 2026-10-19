@@ -3,11 +3,13 @@ import { expect, test } from "@playwright/test";
 test("navega da home até um produto", async ({ page }) => {
   await page.goto("/");
 
-  const firstProduct = page.getByRole("link", { name: /fone de ouvido bluetooth/i });
+  // Primeiro produto em destaque, seja qual for — o catálogo vem do banco, não de dado fixo.
+  const firstProduct = page.locator('a[href^="/produtos/"]').first();
+  const name = (await firstProduct.locator("h3").textContent())?.trim() ?? "";
   await firstProduct.click();
 
-  await expect(page).toHaveURL(/\/produtos\/fone-de-ouvido-bluetooth$/);
-  await expect(page.getByRole("heading", { name: /fone de ouvido bluetooth/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/produtos\/[\w-]+$/);
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   await expect(page.getByText(/R\$/).first()).toBeVisible();
 });
 

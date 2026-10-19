@@ -6,11 +6,9 @@ import {
   getProductSlugsForBuild,
   getProducts,
 } from "@/lib/api/catalog";
-import { formatCurrency } from "@/lib/format";
-import { ProductImage } from "@/components/product-image";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { Badge } from "@/components/ui/badge";
 import { AddToCartForm } from "@/features/cart/components/add-to-cart-form";
+import { ProductGallery } from "@/features/catalog/components/product-gallery";
 import { ProductGrid } from "@/features/catalog/components/product-grid";
 
 export async function generateStaticParams() {
@@ -49,7 +47,8 @@ export default async function ProductPage(props: PageProps<"/produtos/[slug]">) 
     "@type": "Product",
     name: product.name,
     description: product.description,
-    image: product.imageUrl,
+    image: product.images.length > 0 ? product.images.map((i) => i.url) : product.imageUrl,
+    sku: product.variants[0]?.sku,
     offers: {
       "@type": "Offer",
       priceCurrency: "BRL",
@@ -71,15 +70,10 @@ export default async function ProductPage(props: PageProps<"/produtos/[slug]">) 
       />
 
       <div className="grid gap-8 md:grid-cols-2 lg:gap-14">
-        <div className="relative aspect-square overflow-hidden rounded-3xl border border-border bg-surface-muted">
-          <ProductImage
-            src={product.imageUrl}
-            alt={product.imageAlt}
-            className="object-contain p-10 sm:p-14"
-            sizes="(min-width: 768px) 50vw, 100vw"
-            priority
-          />
-        </div>
+        <ProductGallery
+          images={product.images}
+          fallback={{ url: product.imageUrl, alt: product.imageAlt }}
+        />
 
         <div className="flex flex-col">
           {category && (
@@ -91,20 +85,11 @@ export default async function ProductPage(props: PageProps<"/produtos/[slug]">) 
             {product.name}
           </h1>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <p className="text-3xl font-semibold tracking-tight tabular-nums">
-              {formatCurrency(product.priceInCents)}
-            </p>
-            <Badge tom={product.inStock ? "success" : "danger"}>
-              {product.inStock ? "Em estoque" : "Esgotado"}
-            </Badge>
-          </div>
+          <AddToCartForm product={product} />
 
-          <p className="mt-6 leading-relaxed text-pretty text-muted-foreground">
+          <p className="mt-8 leading-relaxed text-pretty text-muted-foreground">
             {product.description}
           </p>
-
-          <AddToCartForm product={product} />
         </div>
       </div>
 

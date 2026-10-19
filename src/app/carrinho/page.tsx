@@ -1,30 +1,22 @@
-"use client";
-
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRightIcon, CartIcon } from "@/components/icons";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, EmptyState, PageHeader } from "@/components/ui/card";
 import { CartLineItem } from "@/features/cart/components/cart-line-item";
-import { useHasCartHydrated } from "@/features/cart/hooks/use-hydrated";
-import { cartItemCount, cartSubtotalInCents, useCartStore } from "@/features/cart/store";
+import { obterCarrinho } from "@/lib/api/carrinho";
 import { formatCurrency } from "@/lib/format";
 
-export default function CartPage() {
-  const items = useCartStore((state) => state.items);
-  const hasHydrated = useHasCartHydrated();
+export const metadata: Metadata = {
+  title: "Carrinho",
+  robots: { index: false },
+};
 
-  if (!hasHydrated) {
-    // Evita mostrar "carrinho vazio" por um instante antes de hidratar
-    // o que estava salvo no localStorage.
-    return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-        <div className="h-8 w-48 animate-pulse rounded-lg bg-surface-muted" />
-        <div className="mt-8 h-64 animate-pulse rounded-2xl bg-surface-muted" />
-      </div>
-    );
-  }
+/** Carrinho vem da API a cada acesso (preço e estoque em tempo real) — nunca do cache. */
+export default async function CartPage() {
+  const carrinho = await obterCarrinho();
 
-  if (items.length === 0) {
+  if (carrinho.itens.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-4 py-10">
         <EmptyState
@@ -41,21 +33,21 @@ export default function CartPage() {
     );
   }
 
-  const subtotal = cartSubtotalInCents(items);
-  const quantidade = cartItemCount(items);
+  // Item esgotado ou acima do estoque faria o checkout falhar na API — bloqueia antes.
+  const temPendencia = carrinho.itens.some((i) => i.quantidade > i.estoqueDisponivel);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <PageHeader
         title="Seu carrinho"
-        description={`${quantidade} ${quantidade === 1 ? "item" : "itens"}`}
+        description={`${carrinho.quantidadeDeItens} ${carrinho.quantidadeDeItens === 1 ? "item" : "itens"}`}
       />
 
       <div className="grid items-start gap-8 lg:grid-cols-[1fr_22rem]">
         <Card className="px-5">
           <ul className="divide-y divide-border">
-            {items.map((item) => (
-              <CartLineItem key={item.productId} item={item} />
+            {carrinho.itens.map((item) => (
+              <CartLineItem key={item.varianteId} item={item} />
             ))}
           </ul>
         </Card>
@@ -71,17 +63,23 @@ export default function CartPage() {
           <div className="mt-4 flex items-baseline justify-between border-t border-border pt-4">
             <span className="font-medium">Subtotal</span>
             <span className="text-xl font-semibold tracking-tight tabular-nums">
-              {formatCurrency(subtotal)}
+              {formatCurrency(carrinho.subtotalInCents)}
             </span>
           </div>
 
-          <Link
-            href="/checkout/identificacao"
-            className={buttonClasses({ tamanho: "lg", className: "mt-6 w-full" })}
-          >
-            Ir para o checkout
-            <ArrowRightIcon className="h-4 w-4" />
-          </Link>
+          {temPendencia ? (
+            <p className="mt-6 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+              Ajuste os itens marcados pra continuar.
+            </p>
+          ) : (
+            <Link
+              href="/checkout"
+              className={buttonClasses({ tamanho: "lg", className: "mt-6 w-full" })}
+            >
+              Ir para o checkout
+              <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+          )}
           <Link
             href="/produtos"
             className="mt-3 block text-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"

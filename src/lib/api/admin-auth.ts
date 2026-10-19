@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { apiUrl } from "@/lib/api/client";
+import { apiUrl, cabecalhosDoVisitante } from "@/lib/api/client";
 
 /**
  * Sessão do admin: guarda só o access token da API própria num cookie httpOnly do PRÓPRIO
@@ -44,9 +44,10 @@ export async function loginAdmin(
     return { error: "Informe e-mail e senha." };
   }
 
+  // A API limita login por visitante — sem o IP dele, todo login viria do IP da Vercel.
   const res = await fetch(apiUrl("/auth/login"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await cabecalhosDoVisitante()) },
     body: JSON.stringify({ email, senha }),
   });
 

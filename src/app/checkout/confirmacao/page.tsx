@@ -1,108 +1,141 @@
-"use client";
-
-import { useEffect } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { CheckIcon, PackageIcon } from "@/components/icons";
+import { notFound } from "next/navigation";
+import { AlertIcon, CheckCircleIcon, PackageIcon } from "@/components/icons";
 import { buttonClasses } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { CheckoutSteps } from "@/features/checkout/components/checkout-steps";
-import { useCartStore } from "@/features/cart/store";
-import { useCheckoutStore } from "@/features/checkout/store";
-import { formatCurrency } from "@/lib/format";
+import { numeroDoPedido } from "@/features/conta/components/status-do-pedido";
+import { ResumoDoPedido } from "@/features/conta/components/resumo-do-pedido";
+import { obterPedido } from "@/lib/api/conta";
+import { exigirSessao } from "@/lib/auth/sessao";
+import { cn } from "@/lib/cn";
+import type { Pedido } from "@/types/conta";
 
-const PAYMENT_METHOD_LABELS = {
-  pix: "Pix",
-  boleto: "Boleto",
-  cartao: "Cartão de crédito",
+export const metadata: Metadata = {
+  title: "Pedido recebido",
+  robots: { index: false },
 };
 
-export default function ConfirmationPage() {
-  const router = useRouter();
-  const order = useCheckoutStore((state) => state.lastOrder);
-  const clearCart = useCartStore((state) => state.clear);
+type Situacao = { titulo: string; texto: string; tom: "sucesso" | "aguardando" | "falha" };
 
-  useEffect(() => {
-    if (!order) {
-      router.replace("/");
-      return;
-    }
-    // Só limpa o carrinho depois que o pedido já existe e a confirmação
-    // está de fato sendo exibida (ver comentário no passo de pagamento).
-    clearCart();
-  }, [order, router, clearCart]);
+/**
+ * O status que vale é o do pedido na API (atualizado pelo webhook do Mercado Pago). O `status` que
+ * o Mercado Pago põe na URL de retorno só ajuda a explicar o intervalo até o webhook chegar —
+ * nunca confirma pagamento sozinho (é só um parâmetro de URL, qualquer um edita).
+ */
+function situacao(pedido: Pedido, statusNoRetorno: string | undefined): Situacao {
+  switch (pedido.status) {
+    case "PagamentoConfirmado":
+    case "Enviado":
+    case "Entregue":
+      return {
+        titulo: "Pagamento confirmado!",
+        texto: "Já estamos separando seu pedido.",
+        tom: "sucesso",
+      };
+    case "PagamentoRecusado":
+      return {
+        titulo: "Pagamento não aprovado",
+        texto:
+          "O Mercado Pago recusou o pagamento. Os itens voltaram ao estoque — você pode montar o pedido de novo.",
+        tom: "falha",
+      };
+    case "Cancelado":
+    case "Reembolsado":
+      return {
+        titulo: "Pedido cancelado",
+        texto: "Este pedido não está mais ativo.",
+        tom: "falha",
+      };
+    case "Pendente":
+      if (statusNoRetorno === "approved") {
+        return {
+          titulo: "Pagamento recebido",
+          texto:
+            "Estamos aguardando a confirmação do Mercado Pago — leva poucos instantes. Você recebe um e-mail quando confirmar.",
+          tom: "aguardando",
+        };
+      }
+      if (statusNoRetorno === "rejected" || statusNoRetorno === "failure") {
+        return {
+          titulo: "O pagamento não foi concluído",
+          texto: "Seu pedido continua reservado. Tente pagar de novo pelo botão abaixo.",
+          tom: "falha",
+        };
+      }
+      return {
+        titulo: "Pedido recebido!",
+        texto: pedido.urlPagamento
+          ? "Falta só o pagamento. Pix e boleto podem levar alguns minutos pra compensar."
+          : "Assim que o pagamento for confirmado, você recebe um e-mail.",
+        tom: "aguardando",
+      };
+  }
+}
 
-  if (!order) return null;
+export default async function ConfirmacaoPage(props: PageProps<"/checkout/confirmacao">) {
+  const {
+    pedido: pedidoId,
+    status,
+    collection_status: statusDaCobranca,
+  } = await props.searchParams;
+  if (typeof pedidoId !== "string") notFound();
+
+  const sessao = await exigirSessao(`/checkout/confirmacao?pedido=${encodeURIComponent(pedidoId)}`);
+  const pedido = await obterPedido(sessao, pedidoId);
+  if (!pedido) notFound();
+
+  const statusNoRetorno = [status, statusDaCobranca].find(
+    (s): s is string => typeof s === "string",
+  );
+  const { titulo, texto, tom } = situacao(pedido, statusNoRetorno);
+  const Icone = tom === "sucesso" ? CheckCircleIcon : tom === "falha" ? AlertIcon : PackageIcon;
 
   return (
-    <div>
-      <CheckoutSteps current="confirmacao" />
-
-      <div className="mx-auto max-w-xl">
-        <div className="flex flex-col items-center text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-success">
-            <CheckIcon className="h-8 w-8" />
+    <div className="mx-auto max-w-2xl">
+      <div className="text-center">
+        <span
+          className={cn(
+            "mx-auto flex h-16 w-16 items-center justify-center rounded-2xl",
+            tom === "sucesso" && "bg-success-soft text-success",
+            tom === "aguardando" && "bg-accent-soft text-accent",
+            tom === "falha" && "bg-danger-soft text-danger",
+          )}
+        >
+          <Icone className="h-8 w-8" />
+        </span>
+        <h1 className="mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">{titulo}</h1>
+        <p className="mt-2 text-muted-foreground">
+          Pedido{" "}
+          <span className="font-medium text-foreground tabular-nums">
+            {numeroDoPedido(pedido.id)}
           </span>
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight">Pedido confirmado!</h1>
-          <p className="mt-2 text-muted-foreground">
-            Pedido <strong className="font-semibold text-foreground">{order.id}</strong> — pagamento
-            via {PAYMENT_METHOD_LABELS[order.paymentMethod]}.
-          </p>
-        </div>
+        </p>
+        <p className="mx-auto mt-3 max-w-md text-pretty text-muted-foreground">{texto}</p>
 
-        <Card className="mt-8 p-6">
-          <ul className="space-y-2.5 text-sm">
-            {order.items.map((item) => (
-              <li key={item.productId} className="flex justify-between gap-4">
-                <span className="text-muted-foreground">
-                  {item.quantity}× {item.name}
-                </span>
-                <span className="shrink-0 font-medium tabular-nums">
-                  {formatCurrency(item.priceInCents * item.quantity)}
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          <dl className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <dt>Subtotal</dt>
-              <dd className="tabular-nums">{formatCurrency(order.subtotalInCents)}</dd>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <dt>Frete</dt>
-              <dd className="tabular-nums">{formatCurrency(order.shippingInCents)}</dd>
-            </div>
-            <div className="flex items-baseline justify-between border-t border-border pt-3 text-base font-semibold">
-              <dt>Total</dt>
-              <dd className="text-lg tracking-tight tabular-nums">
-                {formatCurrency(order.totalInCents)}
-              </dd>
-            </div>
-          </dl>
-
-          <div className="mt-5 flex gap-3 rounded-xl bg-surface-muted p-4 text-sm">
-            <PackageIcon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-            <div className="text-muted-foreground">
-              <p className="font-medium text-foreground">Enviar para</p>
-              <p>
-                {order.address.street}, {order.address.number}
-                {order.address.complement ? ` — ${order.address.complement}` : ""}
-              </p>
-              <p>
-                {order.address.neighborhood}, {order.address.city} - {order.address.state}
-              </p>
-              <p>CEP {order.address.zipCode}</p>
-            </div>
-          </div>
-        </Card>
-
-        <div className="mt-8 flex justify-center">
-          <Link href="/produtos" className={buttonClasses({ tamanho: "lg" })}>
-            Continuar comprando
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          {pedido.status === "Pendente" && pedido.urlPagamento && (
+            <a href={pedido.urlPagamento} className={buttonClasses({ tamanho: "lg" })}>
+              Pagar agora
+            </a>
+          )}
+          <Link
+            href={`/conta/pedidos/${pedido.id}`}
+            className={buttonClasses({ variante: "outline", tamanho: "lg" })}
+          >
+            Ver pedido
           </Link>
         </div>
       </div>
+
+      <div className="mt-10">
+        <ResumoDoPedido pedido={pedido} />
+      </div>
+
+      <p className="mt-8 text-center">
+        <Link href="/produtos" className="text-sm font-medium text-accent hover:text-accent-hover">
+          Continuar comprando
+        </Link>
+      </p>
     </div>
   );
 }

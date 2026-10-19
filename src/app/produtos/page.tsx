@@ -2,23 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getCategories, getProducts } from "@/lib/api/catalog";
 import { ProductGrid } from "@/features/catalog/components/product-grid";
+import { CatalogToolbar } from "@/features/catalog/components/catalog-toolbar";
+import {
+  lerParametrosDoCatalogo,
+  montarLinkDoCatalogo,
+  TAMANHO_PAGINA_CATALOGO,
+} from "@/features/catalog/search-params";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { Pagination } from "@/components/pagination";
 import { PageHeader } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
   title: "Produtos",
 };
-
-function buildHref(base: URLSearchParams, overrides: Record<string, string | undefined>) {
-  const params = new URLSearchParams(base);
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value === undefined) params.delete(key);
-    else params.set(key, value);
-  }
-  const qs = params.toString();
-  return qs ? `/produtos?${qs}` : "/produtos";
-}
 
 function chipClasses(ativo: boolean) {
   return cn(
@@ -33,26 +30,42 @@ export default async function ProductsPage(props: PageProps<"/produtos">) {
   const searchParams = await props.searchParams;
   const q = typeof searchParams.q === "string" ? searchParams.q : undefined;
   const categoria = typeof searchParams.categoria === "string" ? searchParams.categoria : undefined;
+  const filtros = lerParametrosDoCatalogo(searchParams);
 
-  const [categories, { items: products, total }] = await Promise.all([
+  const [categories, resultado] = await Promise.all([
     getCategories(),
-    getProducts({ q, category: categoria, pageSize: 24 }),
+    getProducts({
+      q,
+      category: categoria,
+      sort: filtros.sort,
+      minPriceInCents: filtros.minPriceInCents,
+      maxPriceInCents: filtros.maxPriceInCents,
+      page: filtros.page,
+      pageSize: TAMANHO_PAGINA_CATALOGO,
+    }),
   ]);
 
-  const currentParams = new URLSearchParams();
-  if (q) currentParams.set("q", q);
-  if (categoria) currentParams.set("categoria", categoria);
+  // Estado atual da URL, como texto — base de todo link desta página (chips, paginação, limpar).
+  const atuais = {
+    q,
+    categoria,
+    ordem: filtros.sort,
+    precoMin: searchParams.precoMin?.toString(),
+    precoMax: searchParams.precoMax?.toString(),
+  };
+  const link = (alteracoes: Record<string, string | undefined>) =>
+    montarLinkDoCatalogo("/produtos", atuais, alteracoes);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <Breadcrumbs items={[{ label: "Início", href: "/" }, { label: "Produtos" }]} />
       <PageHeader
         title={q ? `Resultados para "${q}"` : "Todos os produtos"}
-        description={`${total} ${total === 1 ? "produto encontrado" : "produtos encontrados"}`}
+        description={`${resultado.total} ${resultado.total === 1 ? "produto encontrado" : "produtos encontrados"}`}
         actions={
           q ? (
             <Link
-              href={buildHref(currentParams, { q: undefined })}
+              href={link({ q: undefined, pagina: undefined })}
               className="text-sm font-medium text-accent hover:text-accent-hover"
             >
               Limpar busca
@@ -64,10 +77,10 @@ export default async function ProductsPage(props: PageProps<"/produtos">) {
       <div
         role="group"
         aria-label="Filtrar por categoria"
-        className="-mx-4 mb-8 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+        className="-mx-4 mb-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
       >
         <Link
-          href={buildHref(currentParams, { categoria: undefined })}
+          href={link({ categoria: undefined, pagina: undefined })}
           aria-current={!categoria ? "true" : undefined}
           className={chipClasses(!categoria)}
         >
@@ -76,7 +89,7 @@ export default async function ProductsPage(props: PageProps<"/produtos">) {
         {categories.map((category) => (
           <Link
             key={category.slug}
-            href={buildHref(currentParams, { categoria: category.slug })}
+            href={link({ categoria: category.slug, pagina: undefined })}
             aria-current={categoria === category.slug ? "true" : undefined}
             className={chipClasses(categoria === category.slug)}
           >
@@ -85,7 +98,20 @@ export default async function ProductsPage(props: PageProps<"/produtos">) {
         ))}
       </div>
 
-      <ProductGrid products={products} />
+      <CatalogToolbar
+        action="/produtos"
+        filtros={filtros}
+        manter={{ q, categoria }}
+        limparHref={montarLinkDoCatalogo("/produtos", { q, categoria })}
+      />
+
+      <ProductGrid products={resultado.items} />
+
+      <Pagination
+        page={filtros.page}
+        totalPages={resultado.totalPages}
+        hrefForPage={(pagina) => link({ pagina: String(pagina) })}
+      />
     </div>
   );
 }

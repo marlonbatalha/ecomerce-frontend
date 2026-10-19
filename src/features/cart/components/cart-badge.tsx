@@ -1,14 +1,20 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { CartIcon } from "@/components/icons";
-import { cartItemCount, useCartStore } from "@/features/cart/store";
-import { useHasCartHydrated } from "@/features/cart/hooks/use-hydrated";
+import {
+  avisarCarrinhoAtualizado,
+  useQuantidadeNoCarrinho,
+} from "@/features/cart/quantidade-no-cabecalho";
 
 export function CartBadge() {
-  const items = useCartStore((state) => state.items);
-  const hasHydrated = useHasCartHydrated();
-  const count = hasHydrated ? cartItemCount(items) : 0;
+  const count = useQuantidadeNoCarrinho();
+  const pathname = usePathname();
+
+  // Login/logout/checkout regravam o cookie e navegam — relê a cada troca de página.
+  useEffect(() => avisarCarrinhoAtualizado(), [pathname]);
 
   return (
     <Link

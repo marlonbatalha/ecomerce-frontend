@@ -136,14 +136,14 @@ Como o backend será construído sob medida (API própria, em repositório separ
 
 ### 2.9 Pagamentos e Checkout
 
-- Gateway **decidido: PagBank** (2026-09-07, mesma decisão registrada no plano do backend) — SDK/integração no frontend ainda não implementada; checkout hoje continua 100% mockado (ver seção 1.7).
-- Checkout com etapas claras: carrinho → identificação → endereço/frete → pagamento → confirmação. Fluxo de páginas já implementado (`/checkout/*`), só o "Finalizar pedido" que ainda chama um mock em vez da API própria.
+- Gateway: **Mercado Pago (Checkout Pro)**, que substituiu o PagBank (decisão do backend). O cliente paga **no Mercado Pago** (Pix, cartão ou boleto): nenhum dado de pagamento passa pelo frontend nem pela API.
+- **Implementado (2026-10-19):** carrinho no servidor (API), inclusive para visitante, mesclado no carrinho da conta ao entrar. `/checkout` numa página: endereço salvo ou novo, frete calculado pelo CEP, cupom com prévia e resumo. "Ir para o pagamento" cria o pedido na API e redireciona para o Mercado Pago, que devolve o cliente em `/checkout/confirmacao?pedido=…`. Exige login. O valor do frete e o desconto são sempre recalculados pela API.
 
 ### 2.10 Autenticação
 
 Duas áreas distintas, com estado bem diferente:
 
-- **Conta do cliente** (login/cadastro/histórico de pedidos, seção 3 "Fases") — **ainda não implementado**. Vai consumir os mesmos endpoints da API própria (`/api/v1/auth/*`) que a área admin abaixo já usa, mas a decisão de sessão via cookie `httpOnly` vs. outro mecanismo, e o próprio fluxo de UI, ainda estão em aberto.
+- **Conta do cliente** — **implementada (2026-10-19)**: `/entrar`, `/cadastro` e a área `/conta` (resumo, pedidos com paginação e detalhe, endereços, dados e senha). Sessão em cookies `httpOnly` do próprio frontend (`sessao_acesso`, `sessao_renovacao`), com **renovação automática** no `src/proxy.ts`: quando o access token está para vencer, o proxy chama `/api/v1/auth/atualizar-token` e repassa o token novo à própria requisição. A API tolera renovações paralelas (responde 409 em vez de tratar como reuso de token). O cabeçalho mostra o nome lendo um cookie não-`httpOnly` só com o primeiro nome, para o layout raiz não ficar dinâmico.
 - **Área administrativa `/admin`** — **implementada (2026-09-07)**, ver seção 2.10.1 abaixo.
 
 #### 2.10.1 Área administrativa (`/admin`)

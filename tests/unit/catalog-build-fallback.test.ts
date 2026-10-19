@@ -35,6 +35,7 @@ describe("catálogo com a API fora do ar", () => {
         page: 1,
         pageSize: 100,
         total: 0,
+        totalPages: 0,
       });
     });
 
